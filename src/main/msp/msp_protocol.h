@@ -241,6 +241,9 @@
 #define MSP_ANALOG               110    //out message         vbat, powermetersum, rssi if available on RX
 #define MSP_RC_TUNING            111    //out message         rc rate, rc expo, rollpitch rate, yaw rate, dyn throttle PID
 #define MSP_PID                  112    //out message         P I D coeff (9 are used currently)
+
+#define MSP_RC_PILOT             113    //out message         PhoenixMOD rc channels and more  modification for TUM Phoenix
+
 // Legacy Multiicommand that was never used.
 //DEPRECATED - #define MSP_BOX                  113    //out message         BOX setup (number is dependant of your setup)
 // Legacy command that was under constant change due to the naming vagueness, avoid at all costs - use more specific commands instead.

@@ -19,5 +19,5 @@
 
 struct rxConfig_s;
 struct rxRuntimeConfig_s;
-void rxMspInit(const struct rxConfig_s *rxConfig, struct rxRuntimeConfig_s *rxRuntimeConfig);
+void rxMspInit(const struct rxConfig_s *rxConfig_s, struct rxRuntimeConfig_s *rxRuntimeConfig); // PhoenixMOD
 void rxMspFrameReceive(uint16_t *frame, int channelCount);

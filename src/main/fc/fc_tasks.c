@@ -395,10 +395,10 @@ cfTask_t cfTasks[TASK_COUNT] = {
         .taskFunc = taskHandleSerial,
 #ifdef USE_OSD_SLAVE
         .checkFunc = taskSerialCheck,
-        .desiredPeriod = TASK_PERIOD_HZ(100),
+        .desiredPeriod = TASK_PERIOD_HZ(400),
         .staticPriority = TASK_PRIORITY_REALTIME,
 #else
-        .desiredPeriod = TASK_PERIOD_HZ(100),       // 100 Hz should be enough to flush up to 115 bytes @ 115200 baud
+        .desiredPeriod = TASK_PERIOD_HZ(400),       // PhoenixMOD 100 Hz should be enough to flush up to 115 bytes @ 115200 baud
         .staticPriority = TASK_PRIORITY_LOW,
 #endif
     },
@@ -455,7 +455,7 @@ cfTask_t cfTasks[TASK_COUNT] = {
     [TASK_COMPASS] = {
         .taskName = "COMPASS",
         .taskFunc = taskUpdateCompass,
-        .desiredPeriod = TASK_PERIOD_HZ(10),        // Compass is updated at 10 Hz
+        .desiredPeriod = TASK_PERIOD_HZ(25),        // PhoenixMOD Compass is updated at 10 Hz
         .staticPriority = TASK_PRIORITY_LOW,
     },
 #endif
@@ -464,7 +464,7 @@ cfTask_t cfTasks[TASK_COUNT] = {
     [TASK_BARO] = {
         .taskName = "BARO",
         .taskFunc = taskUpdateBaro,
-        .desiredPeriod = TASK_PERIOD_HZ(20),
+        .desiredPeriod = TASK_PERIOD_HZ(25),        // PhoenixMOD from 20Hz
         .staticPriority = TASK_PRIORITY_LOW,
     },
 #endif

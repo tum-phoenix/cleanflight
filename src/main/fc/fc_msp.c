@@ -944,6 +944,11 @@ static bool mspFcProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst, mspPostProcessFn
         }
         break;
 
+    case MSP_RC_PILOT:
+        for (int i = 0; i < rxRuntimeConfig.channelCount; i++)
+            sbufWriteU16(dst, rcRaw_pilot[i]);
+        break;
+
     case MSP_ATTITUDE:
         sbufWriteU16(dst, attitude.values.roll);
         sbufWriteU16(dst, attitude.values.pitch);

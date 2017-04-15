@@ -79,6 +79,8 @@ static uint32_t needRxSignalMaxDelayUs;
 static uint32_t suspendRxSignalUntil = 0;
 static uint8_t  skipRxSamples = 0;
 
+// PhoenixMOD
+int16_t rcRaw_pilot[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // interval [1000;2000]
 int16_t rcRaw[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // interval [1000;2000]
 int16_t rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // interval [1000;2000]
 uint32_t rcInvalidPulsPeriod[MAX_SUPPORTED_RC_CHANNEL_COUNT];
@@ -507,9 +509,31 @@ static void readRxChannelsApplyRanges(void)
         if (channel < NON_AUX_CHANNEL_COUNT) {
             sample = applyRxChannelRangeConfiguraton(sample, rxChannelRangeConfigs(channel));
         }
-
+        rcRaw_pilot[channel] = sample;      // PhoenixMOD this always holds the pilot rc values
         rcRaw[channel] = sample;
     }
+
+
+    // PhoenixMOD
+    // if the overwrite_channel of the pilot RC is high,
+    // then the serial msp_rc is written into the rcRaw data array.
+    uint8_t overwrite_channel = 7;
+    if (rcRaw_pilot[overwrite_channel] > 1600) {
+        for (int channel = 0; channel < rxRuntimeConfig.channelCount; channel++) {
+            uint8_t rawChannel = calculateChannelRemapping(rxConfig()->rcmap, REMAPPABLE_CHANNEL_COUNT, channel);
+
+            // sample the channel
+            uint16_t sample = rxMspReadRawRC(&rxRuntimeConfig, rawChannel);
+
+            // apply the rx calibration
+            if (channel < NON_AUX_CHANNEL_COUNT) {
+                sample = applyRxChannelRangeConfiguraton(sample, rxChannelRangeConfigs(channel));
+            }
+            rcRaw[channel] = sample;    // overwriting data here if overwrite_channel is high
+        }
+    }
+
+
 }
 
 static void detectAndApplySignalLossBehaviour(timeUs_t currentTimeUs)
