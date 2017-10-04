@@ -33,3 +33,8 @@ void mspFcInit(void);
 void mspOsdSlaveInit(void);
 mspResult_e mspFcProcessCommand(mspPacket_t *cmd, mspPacket_t *reply, mspPostProcessFnPtr *mspPostProcessFn);
 void mspFcProcessReply(mspPacket_t *reply);
+
+// PhoenixMOD
+#include "rx/rx.h"
+extern int16_t rcRaw_pilot[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2000] modification for TUM Phoenix
+uint8_t overwrite_channel;
