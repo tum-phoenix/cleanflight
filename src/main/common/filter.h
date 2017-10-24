@@ -17,8 +17,10 @@
 
 #pragma once
 
-#ifdef STM32F10X
-#define MAX_FIR_DENOISE_WINDOW_SIZE 60
+// Don't use it on F1 and F3 to lower RAM usage
+// FIR/Denoise filter can be cleaned up in the future as it is rarely used and used to be experimental
+#if (defined(STM32F1) || defined(STM32F3))
+#define MAX_FIR_DENOISE_WINDOW_SIZE 1
 #else
 #define MAX_FIR_DENOISE_WINDOW_SIZE 120
 #endif
@@ -30,13 +32,19 @@ typedef struct pt1Filter_s {
     float dT;
 } pt1Filter_t;
 
+typedef struct slewFilter_s {
+    float state;
+    float slewLimit;
+    float threshold;
+} slewFilter_t;
+
 /* this holds the data required to update samples thru a filter */
 typedef struct biquadFilter_s {
     float b0, b1, b2, a1, a2;
-    float d1, d2;
+    float x1, x2, y1, y2;
 } biquadFilter_t;
 
-typedef struct firFilterDenoise_s{
+typedef struct firFilterDenoise_s {
     int filledCount;
     int targetCount;
     int index;
@@ -47,12 +55,14 @@ typedef struct firFilterDenoise_s{
 typedef enum {
     FILTER_PT1 = 0,
     FILTER_BIQUAD,
-    FILTER_FIR
+    FILTER_FIR,
+    FILTER_SLEW
 } filterType_e;
 
 typedef enum {
     FILTER_LPF,
-    FILTER_NOTCH
+    FILTER_NOTCH,
+    FILTER_BPF,
 } biquadFilterType_e;
 
 typedef struct firFilter_s {
@@ -71,12 +81,20 @@ float nullFilterApply(void *filter, float input);
 
 void biquadFilterInitLPF(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate);
 void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q, biquadFilterType_e filterType);
+void biquadFilterUpdate(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q, biquadFilterType_e filterType);
+float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
 float biquadFilterApply(biquadFilter_t *filter, float input);
 float filterGetNotchQ(uint16_t centerFreq, uint16_t cutoff);
+
+// not exactly correct, but very very close and much much faster
+#define filterGetNotchQApprox(centerFreq, cutoff)   ((float)(cutoff * centerFreq) / ((float)(centerFreq - cutoff) * (float)(centerFreq + cutoff)))
 
 void pt1FilterInit(pt1Filter_t *filter, uint8_t f_cut, float dT);
 float pt1FilterApply(pt1Filter_t *filter, float input);
 float pt1FilterApply4(pt1Filter_t *filter, float input, uint8_t f_cut, float dT);
+
+void slewFilterInit(slewFilter_t *filter, float slewLimit, float threshold);
+float slewFilterApply(slewFilter_t *filter, float input);
 
 void firFilterInit(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs);
 void firFilterInit2(firFilter_t *filter, float *buf, uint8_t bufLength, const float *coeffs, uint8_t coeffsLength);
@@ -90,4 +108,3 @@ float firFilterLastInput(const firFilter_t *filter);
 
 void firFilterDenoiseInit(firFilterDenoise_t *filter, uint8_t gyroSoftLpfHz, uint16_t targetLooptime);
 float firFilterDenoiseUpdate(firFilterDenoise_t *filter, float input);
-

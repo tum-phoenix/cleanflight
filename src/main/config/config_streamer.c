@@ -23,8 +23,10 @@
 
 #include "config/config_streamer.h"
 
+#ifndef EEPROM_IN_RAM
 extern uint8_t __config_start;   // configured via linker script when building binaries.
 extern uint8_t __config_end;
+#endif
 
 #if !defined(FLASH_PAGE_SIZE)
 // F1
@@ -53,6 +55,7 @@ extern uint8_t __config_end;
 #  define FLASH_PAGE_SIZE                 ((uint32_t)0x8000)
 # elif defined(UNIT_TEST)
 #  define FLASH_PAGE_SIZE                 (0x400)
+// SIMULATOR
 # elif defined(SIMULATOR_BUILD)
 #  define FLASH_PAGE_SIZE                 (0x400)
 # else
@@ -87,9 +90,7 @@ void config_streamer_start(config_streamer_t *c, uintptr_t base, int size)
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 #elif defined(STM32F7)
     // NOP
-#elif defined(UNIT_TEST)
-    // NOP
-#elif defined(SIMULATOR_BUILD)
+#elif defined(UNIT_TEST) || defined(SIMULATOR_BUILD)
     // NOP
 #else
 # error "Unsupported CPU"
@@ -236,7 +237,7 @@ static int write_word(config_streamer_t *c, uint32_t value)
         EraseInitStruct.Sector = getFLASHSectorForEEPROM();
         uint32_t SECTORError;
         const HAL_StatusTypeDef status = HAL_FLASHEx_Erase(&EraseInitStruct, &SECTORError);
-        if (status != HAL_OK){
+        if (status != HAL_OK) {
             return -1;
         }
     }

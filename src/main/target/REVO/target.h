@@ -48,12 +48,10 @@
 
 #endif
 
-#define USE_ESC_SENSOR
-
-#define LED0                    PB5
+#define LED0_PIN                PB5
 #if defined(PODIUMF4)
-#define LED1                    PB4
-#define LED2                    PB6
+#define LED1_PIN                PB4
+#define LED2_PIN                PB6
 #endif
 
 // Disable LED1, conflicts with AirbotF4/Flip32F4/Revolt beeper
@@ -66,7 +64,7 @@
 #define BEEPER                  PB6
 #define BEEPER_INVERTED
 #else
-#define LED1                    PB4
+#define LED1_PIN                PB4
 // Leave beeper here but with none as io - so disabled unless mapped.
 #define BEEPER                  NONE
 #endif
@@ -138,21 +136,20 @@
 #define MPU_INT_EXTI            PC4
 #define USE_MPU_DATA_READY_SIGNAL
 
-#if !defined(AIRBOTF4) && !defined(REVOLT) && !defined(SOULF4) && !defined(PODIUMF4)
+// Configure MAG and BARO unconditionally.
 #define MAG
 #define USE_MAG_HMC5883
 #define MAG_HMC5883_ALIGN       CW90_DEG
 
 #define BARO
 #define USE_BARO_MS5611
-#endif
+#define USE_BARO_BMP085
+#define USE_BARO_BMP280
 
 #if defined(AIRBOTF4SD)
 // SDCARD support for AIRBOTF4SD
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 #define USE_SDCARD
-#define USE_SDCARD_SPI3
-
 #define SDCARD_DETECT_INVERTED
 #define SDCARD_DETECT_PIN       PC0
 #define SDCARD_SPI_INSTANCE     SPI3
@@ -194,6 +191,12 @@
 #define UART3_RX_PIN            PB11
 #define UART3_TX_PIN            PB10
 
+#if defined(REVOLT) || defined(REVO)
+#define USE_UART4
+#define UART4_RX_PIN            PA1
+#define UART4_TX_PIN            PA0
+#endif // REVOLT || REVO
+
 #define USE_UART6
 #define UART6_RX_PIN            PC7
 #define UART6_TX_PIN            PC6
@@ -201,10 +204,14 @@
 #define USE_SOFTSERIAL1
 #define USE_SOFTSERIAL2
 
+#if defined(REVOLT) || defined(REVO)
+#define SERIAL_PORT_COUNT       7 //VCP, USART1, USART3, UART4,  USART6, SOFTSERIAL x 2
+#else
 #define SERIAL_PORT_COUNT       6 //VCP, USART1, USART3, USART6, SOFTSERIAL x 2
+#endif
 
 #define USE_ESCSERIAL
-#define ESCSERIAL_TIMER_TX_HARDWARE 0 // PWM 1
+#define ESCSERIAL_TIMER_TX_PIN  PB14  // (HARDARE=0,PPM)
 
 #define USE_SPI
 
@@ -217,8 +224,21 @@
 #define SPI3_MOSI_PIN           PC12
 
 #define USE_I2C
+#if defined(AIRBOTF4) || defined(AIRBOTF4SD)
+// On AIRBOTF4 and AIRBOTF4SD, I2C2 and I2C3 are configurable
+#define USE_I2C_DEVICE_2
+#define I2C2_SCL                NONE // PB10, shared with UART3TX
+#define I2C2_SDA                NONE // PB11, shared with UART3RX
+#define USE_I2C_DEVICE_3
+#define I2C3_SCL                NONE // PA8, PWM6
+#define I2C3_SDA                NONE // PC9, CH6
+#define I2C_DEVICE              (I2CDEV_2)
+#else
 #define USE_I2C_DEVICE_1
 #define I2C_DEVICE              (I2CDEV_1)
+#define I2C1_SCL                PB8
+#define I2C1_SDA                PB9
+#endif
 
 #define USE_ADC
 #if !defined(PODIUMF4)
@@ -233,14 +253,14 @@
 #define RSSI_ADC_PIN            PA0
 #endif
 
+#define TRANSPONDER
+
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #if defined(PODIUMF4)
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART6
 #define DEFAULT_FEATURES        FEATURE_TELEMETRY
 #endif
-
-#define SPEKTRUM_BIND_PIN       UART3_RX_PIN
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
@@ -259,4 +279,3 @@
 #define USABLE_TIMER_CHANNEL_COUNT 12
 #define USED_TIMERS             ( TIM_N(2) | TIM_N(3) | TIM_N(5) | TIM_N(8) | TIM_N(12) )
 #endif
-

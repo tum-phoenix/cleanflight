@@ -28,14 +28,13 @@
 
 #include "build/build_config.h"
 
-#include "bus_spi.h"
+#include "drivers/bus_spi.h"
 #include "bus_spi_soft.h"
-#include "gpio.h"
-#include "io.h"
+#include "drivers/io.h"
 #include "io_impl.h"
 #include "rcc.h"
 #include "rx_spi.h"
-#include "system.h"
+#include "drivers/system.h"
 
 #define DISABLE_RX()    {IOHi(DEFIO_IO(RX_NSS_PIN));}
 #define ENABLE_RX()     {IOLo(DEFIO_IO(RX_NSS_PIN));}
@@ -68,7 +67,9 @@ void rxSpiDeviceInit(rx_spi_type_e spiType)
 #else
     UNUSED(spiType);
     const SPIDevice rxSPIDevice = spiDeviceByInstance(RX_SPI_INSTANCE);
-    IOInit(DEFIO_IO(RX_NSS_PIN), OWNER_SPI_CS, rxSPIDevice + 1);
+    const IO_t rxCsPin = DEFIO_IO(RX_NSS_PIN);
+    IOInit(rxCsPin, OWNER_SPI_CS, rxSPIDevice + 1);
+    IOConfigGPIO(rxCsPin, SPI_IO_CS_CFG);
 #endif // USE_RX_SOFTSPI
 
     DISABLE_RX();
@@ -143,4 +144,3 @@ uint8_t rxSpiReadCommandMulti(uint8_t command, uint8_t commandData, uint8_t *ret
     return ret;
 }
 #endif
-

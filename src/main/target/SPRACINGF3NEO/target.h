@@ -22,15 +22,14 @@
 
 #define CONFIG_FASTLOOP_PREFERRED_ACC ACC_DEFAULT
 
-#define LED0                    PB9
-#define LED1                    PB2
+#define LED0_PIN                PB9
+#define LED1_PIN                PB2
 
 #define BEEPER                  PC15
 #define BEEPER_INVERTED
 
 #define USE_EXTI
 #define MPU_INT_EXTI            PC13
-#define EXTI15_10_CALLBACK_HANDLER_COUNT 4 // MPU_INT, SDCardDetect, OSD
 #define USE_MPU_DATA_READY_SIGNAL
 #define ENSURE_MPU_DATA_READY_IS_LOW
 
@@ -75,7 +74,7 @@
 #define UART3_RX_PIN            PB11
 
 #define USE_ESCSERIAL
-#define ESCSERIAL_TIMER_TX_HARDWARE 0 // PWM 1
+#define ESCSERIAL_TIMER_TX_PIN  PA3  // (HARDARE=0,PPM)
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1
@@ -101,12 +100,18 @@
 #define SPI3_MISO_PIN           PB4
 #define SPI3_MOSI_PIN           PB5
 
-#define VTX
-#define RTC6705_CS_GPIO         GPIOF
-#define RTC6705_CS_PIN          GPIO_Pin_4
-#define RTC6705_SPI_INSTANCE    SPI3
+#define VTX_RTC6705
+#define VTX_RTC6705_OPTIONAL    // VTX/OSD board is OPTIONAL
 
+#undef VTX_SMARTAUDIO           // Disabled due to flash size
+#undef VTX_TRAMP                // Disabled due to flash size
+
+#define RTC6705_CS_PIN          PF4
+#define RTC6705_SPI_INSTANCE    SPI3
 #define RTC6705_POWER_PIN       PC3
+
+#define USE_RTC6705_CLK_HACK
+#define RTC6705_CLK_PIN         SPI3_SCK_PIN
 
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI3
@@ -116,12 +121,13 @@
 #define MAX7456_DMA_CHANNEL_RX              DMA2_Channel1
 #define MAX7456_DMA_IRQ_HANDLER_ID          DMA2_CH1_HANDLER
 
+#define SPI_SHARED_MAX7456_AND_RTC6705
+
 #define USE_SDCARD
-#define USE_SDCARD_SPI2
 
 #define SDCARD_DETECT_INVERTED
-
 #define SDCARD_DETECT_PIN                   PC14
+
 #define SDCARD_SPI_INSTANCE                 SPI2
 #define SDCARD_SPI_CS_PIN                   SPI2_NSS_PIN
 
@@ -137,8 +143,10 @@
 #define MPU6500_CS_PIN                   SPI1_NSS_PIN
 #define MPU6500_SPI_INSTANCE             SPI1
 
-#define BOARD_HAS_VOLTAGE_DIVIDER
-#define BOARD_HAS_CURRENT_SENSOR
+#define CURRENT_METER_SCALE_DEFAULT 300
+
+#define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
+#define DEFAULT_CURRENT_METER_SOURCE CURRENT_METER_ADC
 
 #define USE_ADC
 #define ADC_INSTANCE            ADC1
@@ -161,19 +169,22 @@
 
 #define OSD
 
-#define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
-#define DEFAULT_FEATURES        (FEATURE_TRANSPONDER | FEATURE_RSSI_ADC | FEATURE_TELEMETRY | FEATURE_OSD | FEATURE_LED_STRIP)
-#define SERIALRX_UART           SERIAL_PORT_USART2
-#define GPS_UART                SERIAL_PORT_USART3
-#define TELEMETRY_UART          SERIAL_PORT_UART5
-#define SERIALRX_PROVIDER       SERIALRX_SBUS
+#define DEFAULT_RX_FEATURE                  FEATURE_RX_SERIAL
+#define DEFAULT_FEATURES                    (FEATURE_TRANSPONDER | FEATURE_RSSI_ADC | FEATURE_TELEMETRY | FEATURE_OSD | FEATURE_LED_STRIP)
 
-#define BUTTONS
-#define BUTTON_A_PIN            PD2
+#define GPS_UART                            SERIAL_PORT_USART3
 
-#define SPEKTRUM_BIND_PIN       UART2_RX_PIN
+#define SERIALRX_UART                       SERIAL_PORT_USART2
+#define SERIALRX_PROVIDER                   SERIALRX_SBUS
 
-#define BINDPLUG_PIN            PD2
+#define TELEMETRY_UART                      SERIAL_PORT_UART5
+#define TELEMETRY_PROVIDER_DEFAULT          FUNCTION_TELEMETRY_SMARTPORT
+
+#define BUTTONS // Physically located on the optional OSD/VTX board.
+#define BUTTON_A_PIN                        PD2
+
+// FIXME While it's possible to use the button on the OSD/VTX board for binding enabling it here will break binding unless you have the OSD/VTX connected.
+//#define BINDPLUG_PIN                        BUTTON_A_PIN
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 

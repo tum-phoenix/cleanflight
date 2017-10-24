@@ -22,13 +22,17 @@
 
 #define CONFIG_FASTLOOP_PREFERRED_ACC ACC_DEFAULT
 
-#define LED0                    PB8
+#define LED0_PIN                PB8
 #else
 #define TARGET_BOARD_IDENTIFIER "SRFM"
 
+#ifndef SPRACINGF3MINI_REV
+#define SPRACINGF3MINI_REV 2
+#endif
+
 #define CONFIG_FASTLOOP_PREFERRED_ACC ACC_NONE
 
-#define LED0                    PB3
+#define LED0_PIN                PB3
 #endif
 
 #define BEEPER                  PC15
@@ -43,7 +47,6 @@
 #define ACC
 
 #ifdef TINYBEEF3
-#define EXTI15_10_CALLBACK_HANDLER_COUNT 1 // MPU_INT
 
 #define USE_GYRO_SPI_MPU6500
 #define GYRO_MPU6500_ALIGN      CW270_DEG
@@ -51,7 +54,6 @@
 #define USE_ACC_SPI_MPU6500
 #define ACC_MPU6500_ALIGN       CW270_DEG
 #else
-#define EXTI15_10_CALLBACK_HANDLER_COUNT 2 // MPU_INT, SDCardDetect
 
 #define USE_MAG_DATA_READY_SIGNAL
 #define ENSURE_MAG_DATA_READY_IS_HIGH
@@ -94,7 +96,15 @@
 #endif
 
 #define USE_ESCSERIAL
-#define ESCSERIAL_TIMER_TX_HARDWARE 0 // PWM 1
+#ifdef TINYBEEF3
+#define ESCSERIAL_TIMER_TX_PIN  PA15 // (Hardware=0)
+#else
+#if defined(SPRACINGF3MINI_REV) && (SPRACINGF3MINI_REV <= 1)
+#define ESCSERIAL_TIMER_TX_PIN  PB5  // (Hardware=0)
+#else
+#define ESCSERIAL_TIMER_TX_PIN  PB4  // (Hardware=0)
+#endif
+#endif
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
@@ -139,11 +149,10 @@
 #define SPI2_MOSI_PIN           PB15
 
 #define USE_SDCARD
-#define USE_SDCARD_SPI2
 
 #define SDCARD_DETECT_INVERTED
-
 #define SDCARD_DETECT_PIN                   PC14
+
 #define SDCARD_SPI_INSTANCE                 SPI2
 #define SDCARD_SPI_CS_PIN                   SPI2_NSS_PIN
 
@@ -162,7 +171,7 @@
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 #endif
 
-#define BOARD_HAS_VOLTAGE_DIVIDER
+#define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #define USE_ADC
 #define ADC_INSTANCE                ADC2
 #define VBAT_ADC_PIN                PA4
@@ -183,8 +192,6 @@
 
 #define BINDPLUG_PIN            BUTTON_B_PIN
 #endif
-
-#define SPEKTRUM_BIND_PIN       UART2_RX_PIN
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

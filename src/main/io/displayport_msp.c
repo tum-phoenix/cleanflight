@@ -30,7 +30,6 @@
 #include "config/parameter_group_ids.h"
 
 #include "drivers/display.h"
-#include "drivers/system.h"
 
 #include "fc/fc_msp.h"
 
@@ -44,17 +43,30 @@ PG_REGISTER(displayPortProfile_t, displayPortProfileMsp, PG_DISPLAY_PORT_MSP_CON
 
 static displayPort_t mspDisplayPort;
 
+#ifdef USE_CLI
+extern uint8_t cliMode;
+#endif
+
 static int output(displayPort_t *displayPort, uint8_t cmd, uint8_t *buf, int len)
 {
     UNUSED(displayPort);
-    return mspSerialPush(cmd, buf, len);
+
+#ifdef USE_CLI
+    // FIXME There should be no dependency on the CLI but mspSerialPush doesn't check for cli mode, and can't because it also shouldn't have a dependency on the CLI.
+    if (cliMode) {
+        return 0;
+    }
+#endif
+    return mspSerialPush(cmd, buf, len, MSP_DIRECTION_REPLY);
 }
 
 static int heartbeat(displayPort_t *displayPort)
 {
     uint8_t subcmd[] = { 0 };
 
-    // ensure display is not released by MW OSD software
+    // heartbeat is used to:
+    // a) ensure display is not released by MW OSD software
+    // b) prevent OSD Slave boards from displaying a 'disconnected' status.
     return output(displayPort, MSP_DISPLAYPORT, subcmd, sizeof(subcmd));
 }
 
@@ -88,7 +100,7 @@ static int screenSize(const displayPort_t *displayPort)
     return displayPort->rows * displayPort->cols;
 }
 
-static int write(displayPort_t *displayPort, uint8_t col, uint8_t row, const char *string)
+static int writeString(displayPort_t *displayPort, uint8_t col, uint8_t row, const char *string)
 {
 #define MSP_OSD_MAX_STRING_LENGTH 30 // FIXME move this
     uint8_t buf[MSP_OSD_MAX_STRING_LENGTH + 4];
@@ -113,7 +125,7 @@ static int writeChar(displayPort_t *displayPort, uint8_t col, uint8_t row, uint8
 
     buf[0] = c;
     buf[1] = 0;
-    return write(displayPort, col, row, buf); //!!TODO - check if there is a direct MSP command to do this
+    return writeString(displayPort, col, row, buf); //!!TODO - check if there is a direct MSP command to do this
 }
 
 static bool isTransferInProgress(const displayPort_t *displayPort)
@@ -140,7 +152,7 @@ static const displayPortVTable_t mspDisplayPortVTable = {
     .clearScreen = clearScreen,
     .drawScreen = drawScreen,
     .screenSize = screenSize,
-    .write = write,
+    .writeString = writeString,
     .writeChar = writeChar,
     .isTransferInProgress = isTransferInProgress,
     .heartbeat = heartbeat,

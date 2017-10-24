@@ -23,7 +23,7 @@
 #include "build/build_config.h"
 
 #include "common/utils.h"
-#include "io.h"
+#include "drivers/io.h"
 
 #if defined(STM32F4)
 #include "usb_core.h"
@@ -39,7 +39,7 @@ USBD_HandleTypeDef USBD_Device;
 #include "hw_config.h"
 #endif
 
-#include "system.h"
+#include "drivers/time.h"
 
 #include "serial.h"
 #include "serial_usb_vcp.h"
@@ -57,7 +57,7 @@ static void usbVcpSetBaudRate(serialPort_t *instance, uint32_t baudRate)
     // TODO implement
 }
 
-static void usbVcpSetMode(serialPort_t *instance, portMode_t mode)
+static void usbVcpSetMode(serialPort_t *instance, portMode_e mode)
 {
     UNUSED(instance);
     UNUSED(mode);
@@ -154,8 +154,9 @@ static void usbVcpBeginWrite(serialPort_t *instance)
     port->buffering = true;
 }
 
-uint32_t usbTxBytesFree()
+static uint32_t usbTxBytesFree(const serialPort_t *instance)
 {
+    UNUSED(instance);
     return CDC_Send_FreeBytes();
 }
 

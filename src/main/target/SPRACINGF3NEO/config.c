@@ -23,7 +23,7 @@
 #include "common/axis.h"
 
 #include "drivers/sensor.h"
-#include "drivers/compass.h"
+#include "drivers/compass/compass.h"
 #include "drivers/serial.h"
 
 #include "fc/rc_controls.h"
@@ -51,11 +51,9 @@ void targetConfiguration(void)
 {
     barometerConfigMutable()->baro_hardware = BARO_DEFAULT;
     compassConfigMutable()->mag_hardware = MAG_DEFAULT;
-    rxConfigMutable()->sbus_inversion = 1;
     serialConfigMutable()->portConfigs[1].functionMask = FUNCTION_MSP; // So Bluetooth users don't have to change anything.
-    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(TELEMETRY_UART)].functionMask = FUNCTION_TELEMETRY_SMARTPORT;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(TELEMETRY_UART)].functionMask = TELEMETRY_PROVIDER_DEFAULT;
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(GPS_UART)].functionMask = FUNCTION_GPS;
-    telemetryConfigMutable()->telemetry_inversion = 0;
-    telemetryConfigMutable()->sportHalfDuplex = 0;
+    telemetryConfigMutable()->halfDuplex = true;
 }
 #endif

@@ -10,7 +10,7 @@ https://www.youtube.com/watch?v=YNzqTGEl2xQ
 
 Basically, the goal of the PID controller is to bring the craft's rotation rate in all three axes to the rate that you're commanding with your sticks. An error is computed which is the difference between your target rotation rate and the actual one measured by the gyroscopes, and the controller tries to bring this error to zero.
 
-##PIDs
+## PIDs
 
 **The P term** controls the strength of the correction that is applied to bring the craft toward the target angle or rotation rate. If the P term is too low, the craft will be difficult to control as it won't respond quickly enough to keep itself stable. If it is set too high, the craft will rapidly oscillate/shake as it continually overshoots its target.
 
@@ -19,7 +19,7 @@ Basically, the goal of the PID controller is to bring the craft's rotation rate 
 **The D term** attempts to increase system stability by monitoring the rate of change in the error. If the error is rapidly converging to zero, the D term causes the strength of the correction to be backed off in order to avoid overshooting the target.
 
 
-##TPA and TPA Breakpoint
+## TPA and TPA Breakpoint
 
 *TPA* stands for Throttle PID Attenuation and according to [AlexYork.net](http://blog.alexyorke.net/what-is-tpa/):
 
@@ -61,11 +61,11 @@ This controller has code that attempts to compensate for variations in the loopt
 
 It is the first PID Controller designed for 32-bit processors and not derived from MultiWii.
 
-The strength of the auto-leveling correction applied during *Angle* mode is controlled by the LEVEL "P" PID term which is labeled "LEVEL Proportional" in the GUI (prior to version v1.13.0 the parameter `level_angle` was used). This can be used to tune the auto-leveling strength in *Angle* mode compared to *Horizon* mode. The default is 5.0.
+The strength of the auto-leveling correction applied during *Angle* mode is controlled by the LEVEL "P" PID term which is labeled "Angle", "Strength" in the GUI (prior to version v1.13.0 the parameter `level_angle` was used). This can be used to tune the auto-leveling strength in *Angle* mode compared to *Horizon* mode. The default is 50.
 
-The strength of the auto-leveling correction applied during *Horizon* mode is set by the LEVEL "I" PID term which is labeled "LEVEL Integral" in the GUI (prior to version v1.13.0 the parameter `level_horizon` was used). The default is 3.0, which makes the *Horizon* mode apply weaker self-leveling than the *Angle* mode. Note: There is currently a bug in the Configurator which shows this parameter divided by 100 (so it shows as 0.03 rather than 3.0).
+The strength of the auto-leveling correction applied during *Horizon* mode is set by the LEVEL "I" PID term which is labeled "Horizon", "Strength" in the GUI (prior to version v1.13.0 the parameter `level_horizon` was used). The default is also 50.
 
-The transition between self-leveling and acro behavior in *Horizon* mode is controlled by the LEVEL "D" term which is labeled "LEVEL Derivative" in the GUI  (prior to version of v1.13.0 the parameter `sensitivity_horizon` parameter was used) . This sets the percentage of your stick travel that should have self-leveling applied to it, so smaller values cause more of the stick area to fly using only the gyros. The default is 75%
+The transition between self-leveling and acro behavior in *Horizon* mode is controlled by the LEVEL "D" term which is labeled "Horizon", "Transition" in the GUI  (prior to version of v1.13.0 the parameter `sensitivity_horizon` parameter was used) . This sets the percentage of your stick travel that should have self-leveling applied to it, so smaller values cause more of the stick area to fly using only the gyros.
 
 For example, at a setting of "100" for sensitivity horizon, 100% self-leveling strength will be applied at center stick, 50% self-leveling will be applied at 50% stick, and no self-leveling will be applied at 100% stick. If sensitivity is decreased to 75, 100% self-leveling will be applied at center stick, 50% will be applied at 63% stick, and no self-leveling will be applied at 75% stick and onwards.
 
@@ -97,16 +97,16 @@ It acts as a stick sensitivity multiplier, as explained above.
 
 ### Horizon Mode Commands
 
-The CLI commands `horizon_tilt_effect` and `horizon_tilt_mode` control the effect the current inclination has on self-leveling in the Horizon flight mode. (The current inclination is the number of degrees of pitch or roll that the vehicle is away from level, whichever is greater).
+The CLI commands `horizon_tilt_effect` and `horizon_tilt_expert_mode` control the effect the current inclination has on self-leveling in the Horizon flight mode. (The current inclination is the number of degrees of pitch or roll that the vehicle is away from level, whichever is greater).
 
 `horizon_tilt_effect`: Controls the effect the current inclination (tilt) has on self-leveling in the Horizon flight mode. Larger values result in less self-leveling (more "acro") as the tilt of the vehicle increases. The default value of 75 provides good performance when doing large loops and fast-forward flight. With a value of 0 the strength of the self-leveling would be solely dependent on the stick position.
 
-`horizon_tilt_mode` SAFE|EXPERT: Sets the performance mode for 'horizon_tilt_effect'
+`horizon_tilt_expert_mode` OFF|ON: Sets the performance mode for 'horizon_tilt_effect'
 
-SAFE = leveling always active when sticks centered:
-This is the "safer" range because the self-leveling is always active when the sticks are centered. So, when the vehicle is upside down (180 degrees) and the sticks are then centered, the vehicle will immediately be self-leveled to upright and flat. (Note that after this kind of very-fast 180-degree self-leveling, the heading of the vehicle can be unpredictable.)
+OFF = leveling always active when sticks centered:  
+This is the "safer" mode because the self-leveling is always active when the sticks are centered. So, when the vehicle is upside down (180 degrees) and the sticks are then centered, the vehicle will immediately be self-leveled to upright and flat. (Note that after this kind of very-fast 180-degree self-leveling, the heading of the vehicle can be unpredictable.)
 
-EXPERT = leveling can be totally off when inverted:
-In this range, the inclination (tilt) of the vehicle can fully "override" the self-leveling. In this mode, when the 'horizon_tilt_effect' parameter is set to around 75, and the vehicle is upside down (180 degrees) and the sticks are then centered, the vehicle is not self-leveled. This can be desirable for performing more-acrobatic maneuvers and potentially for 3D-mode flying.
+ON = leveling can be totally off when inverted:  
+In this mode, the inclination (tilt) of the vehicle can fully "override" the self-leveling. In this mode, when the 'horizon_tilt_effect' parameter is set to around 75, and the vehicle is upside down (180 degrees) and the sticks are then centered, the vehicle is not self-leveled. This can be desirable for performing more-acrobatic maneuvers and potentially for 3D-mode flying.
 
-The 'horizon_tilt_effect' and 'horizon_tilt_mode' values are separate for each profile.
+The 'horizon_tilt_effect' and 'horizon_tilt_expert_mode' values are separate for each profile.

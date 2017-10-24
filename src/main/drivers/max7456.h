@@ -17,15 +17,6 @@
 
 #pragma once
 
-#ifndef WHITEBRIGHTNESS
-  #define WHITEBRIGHTNESS 0x01
-#endif
-#ifndef BLACKBRIGHTNESS
-  #define BLACKBRIGHTNESS 0x00
-#endif
-
-#define BWBRIGHTNESS ((BLACKBRIGHTNESS << 2) | WHITEBRIGHTNESS)
-
 /** PAL or NTSC, value is number of chars total */
 #define VIDEO_BUFFER_CHARS_NTSC   390
 #define VIDEO_BUFFER_CHARS_PAL    480
@@ -37,6 +28,8 @@ extern uint16_t maxScreenSize;
 struct vcdProfile_s;
 void    max7456HardwareReset(void);
 void    max7456Init(const struct vcdProfile_s *vcdProfile);
+void    max7456Invert(bool invert);
+void    max7456Brightness(uint8_t black, uint8_t white);
 void    max7456DrawScreen(void);
 void    max7456WriteNvm(uint8_t char_address, const uint8_t *font_data);
 uint8_t max7456GetRowsCount(void);
@@ -45,7 +38,14 @@ void    max7456WriteChar(uint8_t x, uint8_t y, uint8_t c);
 void    max7456ClearScreen(void);
 void    max7456RefreshAll(void);
 uint8_t* max7456GetScreenBuffer(void);
+bool    max7456DmaInProgress(void);
 
-#ifdef MAX7456_DMA_CHANNEL_TX
-bool max7456DmaInProgres(void);
-#endif // MAX7456_DMA_CHANNEL_TX
+typedef struct max7456Config_s {
+    uint8_t clockConfig; // 0 = force half clock, 1 = half if OC, 2 = force full
+} max7456Config_t;
+
+#define MAX7456_CLOCK_CONFIG_HALF 0
+#define MAX7456_CLOCK_CONFIG_OC   1
+#define MAX7456_CLOCK_CONFIG_FULL 2
+
+PG_DECLARE(max7456Config_t, max7456Config);

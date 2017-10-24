@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "io_types.h"
+#include "drivers/io_types.h"
 
 #define WS2811_LED_STRIP_LENGTH    32
 #define WS2811_BITS_PER_LED        24
@@ -28,7 +28,7 @@
 // number of bytes needed is #LEDs * 24 bytes + 42 trailing bytes)
 #define WS2811_DMA_BUFFER_SIZE     (WS2811_DATA_BUFFER_SIZE + WS2811_DELAY_BUFFER_LENGTH)
 
-#define WS2811_TIMER_MHZ           24
+#define WS2811_TIMER_MHZ           48
 #define WS2811_CARRIER_HZ          800000
 
 void ws2811LedStripInit(ioTag_t ioTag);

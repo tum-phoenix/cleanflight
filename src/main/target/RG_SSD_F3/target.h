@@ -19,8 +19,8 @@
 
 #define TARGET_BOARD_IDENTIFIER "RGF3" // rgSSD_F3
 
-#define LED0                     PC1
-#define LED1                     PC0
+#define LED0_PIN                 PC1
+#define LED1_PIN                 PC0
 
 #define BEEPER                   PA8
 #define BEEPER_INVERTED
@@ -42,7 +42,6 @@
 #define SPI2_MISO_PIN            PB14
 #define SPI2_MOSI_PIN            PB15
 
-#define EXTI15_10_CALLBACK_HANDLER_COUNT 2 // MPU_INT, SDCardDetect
 
 #define GYRO
 #define USE_GYRO_SPI_MPU6000
@@ -60,11 +59,10 @@
 #define ENSURE_MPU_DATA_READY_IS_LOW
 
 #define USE_SDCARD
-#define USE_SDCARD_SPI1
 
 #define SDCARD_DETECT_INVERTED
-
 #define SDCARD_DETECT_PIN        PC14
+
 #define SDCARD_SPI_INSTANCE      SPI1
 #define SDCARD_SPI_CS_GPIO       GPIOB
 #define SDCARD_SPI_CS_PIN        SPI1_NSS_PIN
@@ -116,7 +114,7 @@
 #define I2C2_SDA_CLK_SOURCE      RCC_AHBPeriph_GPIOA
 
 #define USE_ADC
-#define BOARD_HAS_VOLTAGE_DIVIDER
+#define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 
 #define ADC_INSTANCE             ADC2
 
@@ -139,15 +137,11 @@
 
 #define DEFAULT_RX_FEATURE FEATURE_RX_PPM
 
-#define USE_DSHOT
-#define USE_ESC_TELEMETRY
 #define REMAP_TIM16_DMA
 #define REMAP_TIM17_DMA
 #define ADC24_DMA_REMAP
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
-
-#define SPEKTRUM_BIND_PIN UART3_RX_PIN
 
 // IO - stm32f303rc in 64pin package
 #define TARGET_IO_PORTA 0xffff
@@ -159,4 +153,3 @@
 #define USED_TIMERS  (TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(8) | TIM_N(16) | TIM_N(17))
 
 #define USABLE_TIMER_CHANNEL_COUNT 9
-

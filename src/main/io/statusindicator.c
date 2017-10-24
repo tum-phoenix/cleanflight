@@ -20,8 +20,8 @@
 
 #include "platform.h"
 
-#include "drivers/system.h"
 #include "drivers/light_led.h"
+#include "drivers/time.h"
 
 #include "statusindicator.h"
 
@@ -83,5 +83,3 @@ void warningLedUpdate(void)
 
     warningLedRefresh();
 }
-
-

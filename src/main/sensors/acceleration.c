@@ -27,29 +27,30 @@
 #include "common/axis.h"
 #include "common/filter.h"
 
+#include "config/config_reset.h"
+#include "config/feature.h"
 #include "config/parameter_group.h"
 #include "config/parameter_group_ids.h"
-#include "config/config_reset.h"
 
-#include "drivers/accgyro.h"
-#include "drivers/accgyro_adxl345.h"
-#include "drivers/accgyro_bma280.h"
-#include "drivers/accgyro_fake.h"
-#include "drivers/accgyro_l3g4200d.h"
-#include "drivers/accgyro_l3gd20.h"
-#include "drivers/accgyro_lsm303dlhc.h"
-#include "drivers/accgyro_mma845x.h"
-#include "drivers/accgyro_mpu.h"
-#include "drivers/accgyro_mpu3050.h"
-#include "drivers/accgyro_mpu6050.h"
-#include "drivers/accgyro_mpu6500.h"
-#include "drivers/accgyro_spi_bmi160.h"
-#include "drivers/accgyro_spi_icm20689.h"
-#include "drivers/accgyro_spi_mpu6000.h"
-#include "drivers/accgyro_spi_mpu6500.h"
-#include "drivers/accgyro_spi_mpu9250.h"
+#include "drivers/accgyro/accgyro.h"
+#include "drivers/accgyro/accgyro_adxl345.h"
+#include "drivers/accgyro/accgyro_bma280.h"
+#include "drivers/accgyro/accgyro_fake.h"
+#include "drivers/accgyro/accgyro_l3g4200d.h"
+#include "drivers/accgyro/accgyro_l3gd20.h"
+#include "drivers/accgyro/accgyro_lsm303dlhc.h"
+#include "drivers/accgyro/accgyro_mma845x.h"
+#include "drivers/accgyro/accgyro_mpu.h"
+#include "drivers/accgyro/accgyro_mpu3050.h"
+#include "drivers/accgyro/accgyro_mpu6050.h"
+#include "drivers/accgyro/accgyro_mpu6500.h"
+#include "drivers/accgyro/accgyro_spi_bmi160.h"
+#include "drivers/accgyro/accgyro_spi_icm20649.h"
+#include "drivers/accgyro/accgyro_spi_icm20689.h"
+#include "drivers/accgyro/accgyro_spi_mpu6000.h"
+#include "drivers/accgyro/accgyro_spi_mpu6500.h"
+#include "drivers/accgyro/accgyro_spi_mpu9250.h"
 #include "drivers/bus_spi.h"
-#include "drivers/system.h"
 
 #include "fc/config.h"
 #include "fc/runtime_config.h"
@@ -60,8 +61,6 @@
 #include "sensors/boardalignment.h"
 #include "sensors/gyro.h"
 #include "sensors/sensors.h"
-
-#include "config/feature.h"
 
 #ifdef USE_HARDWARE_REVISION_DETECTION
 #include "hardware_revision.h"
@@ -114,7 +113,8 @@ void pgResetFn_accelerometerConfig(accelerometerConfig_t *instance)
     RESET_CONFIG_2(accelerometerConfig_t, instance,
         .acc_lpf_hz = 10,
         .acc_align = ALIGN_DEFAULT,
-        .acc_hardware = ACC_DEFAULT
+        .acc_hardware = ACC_DEFAULT,
+        .acc_high_fsr = false,
     );
     resetRollAndPitchTrims(&instance->accelerometerTrims);
     resetFlightDynamicsTrims(&instance->accZero);
@@ -122,7 +122,7 @@ void pgResetFn_accelerometerConfig(accelerometerConfig_t *instance)
 
 bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
 {
-    accelerationSensor_e accHardware;
+    accelerationSensor_e accHardware = ACC_NONE;
 
 #ifdef USE_ACC_ADXL345
     drv_adxl345_config_t acc_params;
@@ -227,7 +227,7 @@ retry:
 #ifdef ACC_MPU6500_ALIGN
             dev->accAlign = ACC_MPU6500_ALIGN;
 #endif
-            switch(dev->mpuDetectionResult.sensor) {
+            switch (dev->mpuDetectionResult.sensor) {
             case MPU_9250_SPI:
                 accHardware = ACC_MPU9250;
                 break;
@@ -243,6 +243,17 @@ retry:
             default:
                 accHardware = ACC_MPU6500;
             }
+            break;
+        }
+#endif
+        ; // fallthrough
+    case ACC_ICM20649:
+#ifdef USE_ACC_SPI_ICM20649
+        if (icm20649SpiAccDetect(dev)) {
+            accHardware = ACC_ICM20649;
+#ifdef ACC_ICM20649_ALIGN
+            dev->accAlign = ACC_ICM20649_ALIGN;
+#endif
             break;
         }
 #endif
@@ -307,11 +318,12 @@ bool accInit(uint32_t gyroSamplingInverval)
     acc.dev.bus = *gyroSensorBus();
     acc.dev.mpuConfiguration = *gyroMpuConfiguration();
     acc.dev.mpuDetectionResult = *gyroMpuDetectionResult();
+    acc.dev.acc_high_fsr = accelerometerConfig()->acc_high_fsr;
     if (!accDetect(&acc.dev, accelerometerConfig()->acc_hardware)) {
         return false;
     }
     acc.dev.acc_1G = 256; // set default
-    acc.dev.init(&acc.dev); // driver initialisation
+    acc.dev.initFn(&acc.dev); // driver initialisation
     // set the acc sampling interval according to the gyro sampling interval
     switch (gyroSamplingInverval) {  // Switch statement kept in place to change acc sampling interval in the future
     case 500:
@@ -453,7 +465,7 @@ static void applyAccelerationTrims(const flightDynamicsTrims_t *accelerationTrim
 
 void accUpdate(rollAndPitchTrims_t *rollAndPitchTrims)
 {
-    if (!acc.dev.read(&acc.dev)) {
+    if (!acc.dev.readFn(&acc.dev)) {
         return;
     }
     acc.isAccelUpdatedAtLeastOnce = true;

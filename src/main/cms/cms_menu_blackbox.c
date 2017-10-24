@@ -21,7 +21,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -38,13 +37,14 @@
 #include "cms/cms_types.h"
 #include "cms/cms_menu_blackbox.h"
 
+#include "common/printf.h"
 #include "common/utils.h"
 
 #include "config/feature.h"
 #include "config/parameter_group.h"
 #include "config/parameter_group_ids.h"
 
-#include "drivers/system.h"
+#include "drivers/time.h"
 
 #include "fc/config.h"
 
@@ -52,6 +52,93 @@
 #include "io/flashfs.h"
 #include "io/beeper.h"
 
+static const char * const cmsx_BlackboxDeviceNames[] = {
+    "NONE",
+    "FLASH ",
+    "SDCARD",
+    "SERIAL"
+};
+
+static uint16_t blackboxConfig_p_denom;
+
+static uint8_t cmsx_BlackboxDevice;
+static OSD_TAB_t cmsx_BlackboxDeviceTable = { &cmsx_BlackboxDevice, 2, cmsx_BlackboxDeviceNames };
+
+#define CMS_BLACKBOX_STRING_LENGTH 8
+static char cmsx_BlackboxStatus[CMS_BLACKBOX_STRING_LENGTH];
+static char cmsx_BlackboxDeviceStorageUsed[CMS_BLACKBOX_STRING_LENGTH];
+static char cmsx_BlackboxDeviceStorageFree[CMS_BLACKBOX_STRING_LENGTH];
+
+static void cmsx_Blackbox_GetDeviceStatus(void)
+{
+    char * unit = "B";
+#if defined(USE_SDCARD) || defined(USE_FLASHFS)
+    bool storageDeviceIsWorking = false;
+#endif
+    uint32_t storageUsed = 0;
+    uint32_t storageFree = 0;
+
+    switch (blackboxConfig()->device)
+    {
+#ifdef USE_SDCARD
+    case BLACKBOX_DEVICE_SDCARD:
+        unit = "MB";
+
+        if (!sdcard_isInserted()) {
+            tfp_sprintf(cmsx_BlackboxStatus, "NO CARD");
+        } else if (!sdcard_isFunctional()) {
+            tfp_sprintf(cmsx_BlackboxStatus, "FAULT");
+        } else {
+            switch (afatfs_getFilesystemState()) {
+            case AFATFS_FILESYSTEM_STATE_READY:
+                tfp_sprintf(cmsx_BlackboxStatus, "READY");
+                storageDeviceIsWorking = true;
+                break;
+            case AFATFS_FILESYSTEM_STATE_INITIALIZATION:
+                tfp_sprintf(cmsx_BlackboxStatus, "INIT");
+                break;
+            case AFATFS_FILESYSTEM_STATE_FATAL:
+            case AFATFS_FILESYSTEM_STATE_UNKNOWN:
+            default:
+                tfp_sprintf(cmsx_BlackboxStatus, "FAULT");
+                break;
+            }
+        }
+
+        if (storageDeviceIsWorking) {
+            storageFree = afatfs_getContiguousFreeSpace() / 1024000;
+            storageUsed = (sdcard_getMetadata()->numBlocks / 2000) - storageFree;
+        }
+
+        break;
+#endif
+
+#ifdef USE_FLASHFS
+    case BLACKBOX_DEVICE_FLASH:
+        unit = "KB";
+
+        storageDeviceIsWorking = flashfsIsReady();
+        if (storageDeviceIsWorking) {
+            tfp_sprintf(cmsx_BlackboxStatus, "READY");
+
+            const flashGeometry_t *geometry = flashfsGetGeometry();
+            storageUsed = flashfsGetOffset() / 1024;
+            storageFree = (geometry->totalSize / 1024) - storageUsed;
+        } else {
+            tfp_sprintf(cmsx_BlackboxStatus, "FAULT");
+        }
+
+        break;
+#endif
+
+    default:
+        tfp_sprintf(cmsx_BlackboxStatus, "---");
+    }
+
+    /* Storage counters */
+    tfp_sprintf(cmsx_BlackboxDeviceStorageUsed, "%ld%s", storageUsed, unit);
+    tfp_sprintf(cmsx_BlackboxDeviceStorageFree, "%ld%s", storageFree, unit);
+}
 
 #ifdef USE_FLASHFS
 static long cmsx_EraseFlash(displayPort_t *pDisplay, const void *ptr)
@@ -71,104 +158,19 @@ static long cmsx_EraseFlash(displayPort_t *pDisplay, const void *ptr)
     displayClearScreen(pDisplay);
     displayResync(pDisplay); // Was max7456RefreshAll(); wedges during heavy SPI?
 
+    // Update storage device status to show new used space amount
+    cmsx_Blackbox_GetDeviceStatus();
+
     return 0;
 }
 #endif // USE_FLASHFS
-
-static const char * const cmsx_BlackboxDeviceNames[] = {
-    "NONE",
-    "FLASH ",
-    "SDCARD",
-    "SERIAL"
-};
-
-static uint8_t blackboxConfig_rate_denom;
-
-static uint8_t cmsx_BlackboxDevice;
-static OSD_TAB_t cmsx_BlackboxDeviceTable = { &cmsx_BlackboxDevice, 2, cmsx_BlackboxDeviceNames };
-
-#define CMS_BLACKBOX_STRING_LENGTH 8
-static char cmsx_BlackboxStatus[CMS_BLACKBOX_STRING_LENGTH];
-static char cmsx_BlackboxDeviceStorageUsed[CMS_BLACKBOX_STRING_LENGTH];
-static char cmsx_BlackboxDeviceStorageFree[CMS_BLACKBOX_STRING_LENGTH];
-
-static void cmsx_Blackbox_GetDeviceStatus()
-{
-    char * unit = "B";
-#if defined(USE_SDCARD) || defined(USE_FLASHFS)
-    bool storageDeviceIsWorking = false;
-#endif
-    uint32_t storageUsed = 0;
-    uint32_t storageFree = 0;
-
-    switch (blackboxConfig()->device)
-    {
-#ifdef USE_SDCARD
-    case BLACKBOX_DEVICE_SDCARD:
-        unit = "MB";
-
-        if (!sdcard_isInserted()) {
-            snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "NO CARD");
-        } else if (!sdcard_isFunctional()) {
-            snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "FAULT");
-        } else {
-            switch (afatfs_getFilesystemState()) {
-            case AFATFS_FILESYSTEM_STATE_READY:
-                snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "READY");
-                storageDeviceIsWorking = true;
-                break;
-            case AFATFS_FILESYSTEM_STATE_INITIALIZATION:
-                snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "INIT");
-                break;
-            case AFATFS_FILESYSTEM_STATE_FATAL:
-            case AFATFS_FILESYSTEM_STATE_UNKNOWN:
-            default:
-                snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "FAULT");
-                break;
-            }
-        }
-
-        if (storageDeviceIsWorking) {
-            storageFree = afatfs_getContiguousFreeSpace() / 1024000;
-            storageUsed = (sdcard_getMetadata()->numBlocks / 2000) - storageFree;
-        }
-
-        break;
-#endif
-
-#ifdef USE_FLASHFS
-    case BLACKBOX_DEVICE_FLASH:
-        unit = "KB";
-
-        storageDeviceIsWorking = flashfsIsReady();
-        if (storageDeviceIsWorking) {
-            snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "READY");
-
-            const flashGeometry_t *geometry = flashfsGetGeometry();
-            storageUsed = flashfsGetOffset() / 1024;
-            storageFree = (geometry->totalSize / 1024) - storageUsed;
-        } else {
-            snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "FAULT");
-        }
-
-        break;
-#endif
-
-    default:
-        snprintf(cmsx_BlackboxStatus, CMS_BLACKBOX_STRING_LENGTH, "---");
-    }
-
-    /* Storage counters */
-    snprintf(cmsx_BlackboxDeviceStorageUsed, CMS_BLACKBOX_STRING_LENGTH, "%ld%s", storageUsed, unit);
-    snprintf(cmsx_BlackboxDeviceStorageFree, CMS_BLACKBOX_STRING_LENGTH, "%ld%s", storageFree, unit);
-}
 
 static long cmsx_Blackbox_onEnter(void)
 {
     cmsx_Blackbox_GetDeviceStatus();
     cmsx_BlackboxDevice = blackboxConfig()->device;
 
-    blackboxConfig_rate_denom = blackboxConfig()->rate_denom;
+    blackboxConfig_p_denom = blackboxConfig()->p_denom;
     return 0;
 }
 
@@ -178,9 +180,9 @@ static long cmsx_Blackbox_onExit(const OSD_Entry *self)
 
     if (blackboxMayEditConfig()) {
         blackboxConfigMutable()->device = cmsx_BlackboxDevice;
-        validateBlackboxConfig();
+        blackboxValidateConfig();
     }
-    blackboxConfigMutable()->rate_denom = blackboxConfig_rate_denom;
+    blackboxConfigMutable()->p_denom = blackboxConfig_p_denom;
     return 0;
 }
 
@@ -196,7 +198,7 @@ static OSD_Entry cmsx_menuBlackboxEntries[] =
     { "(STATUS)",    OME_String,  NULL,            &cmsx_BlackboxStatus,                                      0 },
     { "(USED)",      OME_String,  NULL,            &cmsx_BlackboxDeviceStorageUsed,                           0 },
     { "(FREE)",      OME_String,  NULL,            &cmsx_BlackboxDeviceStorageFree,                           0 },
-    { "RATE DENOM",  OME_UINT8,   NULL,            &(OSD_UINT8_t){ &blackboxConfig_rate_denom, 1, 32, 1 },    0 },
+    { "P DENOM",     OME_UINT16,  NULL,            &(OSD_UINT16_t){ &blackboxConfig_p_denom, 1, INT16_MAX, 1 },0 },
 
 #ifdef USE_FLASHFS
     { "ERASE FLASH", OME_Funcall, cmsx_EraseFlash, NULL,                                                      0 },
