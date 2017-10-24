@@ -112,6 +112,11 @@ static uint8_t motorCount;
 static float motorMixRange;
 
 float motor[MAX_SUPPORTED_MOTORS];
+// phoenix modification
+uint8_t overwrite_channel_motors = 7;
+float motor_fc[MAX_SUPPORTED_MOTORS];
+float motor_serial[MAX_SUPPORTED_MOTORS];
+
 float motor_disarmed[MAX_SUPPORTED_MOTORS];
 
 mixerMode_e currentMixerMode;
@@ -649,6 +654,14 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS])
             if (((rcData[THROTTLE]) < rxConfig()->mincheck)) {
                 motorOutput = disarmMotorOutput;
             }
+        }
+
+        // TUM Phoenix MOD
+        motor_fc[i] = motorOutput;
+        if (rcRaw_pilot[overwrite_channel_motors] > 1600) {
+            motor[i] = motor_serial[i];
+        } else {
+            motor[i] = motorOutput;
         }
         motor[i] = motorOutput;
     }

@@ -104,6 +104,11 @@ PG_DECLARE(motorConfig_t, motorConfig);
 
 extern const mixer_t mixers[];
 extern float motor[MAX_SUPPORTED_MOTORS];
+// TUM phoenix mod
+uint8_t overwrite_channel_motors;
+extern float motor_fc[MAX_SUPPORTED_MOTORS];
+extern float motor_serial[MAX_SUPPORTED_MOTORS];
+
 extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
 extern float motorOutputHigh, motorOutputLow;
 struct rxConfig_s;

@@ -27,5 +27,3 @@ void mspSerialProcessStreamSchedule(void);
 
 // PhoenixMOD
 #include "rx/rx.h"
-extern int16_t rcRaw_pilot[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2000] modification for TUM Phoenix
-uint8_t overwrite_channel;

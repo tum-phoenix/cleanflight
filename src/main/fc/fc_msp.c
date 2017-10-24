@@ -116,11 +116,6 @@
 #include "hardware_revision.h"
 #endif
 
-// PhoenixMOD
-#include "rx/rx.h"
-int16_t rcRaw_pilot[MAX_SUPPORTED_RC_CHANNEL_COUNT];
-uint8_t overwrite_channel = 7;
-
 static const char * const flightControllerIdentifier = CLEANFLIGHT_IDENTIFIER; // 4 UPPER CASE alpha numeric characters that identify the flight controller.
 
 #ifndef USE_OSD_SLAVE
@@ -1474,10 +1469,8 @@ static mspResult_e mspProcessInCommand(uint8_t cmdMSP, sbuf_t *src)
 #endif
 
     case MSP_SET_MOTOR:
-        if (rcRaw_pilot[overwrite_channel] > 1600) {
-            for (int i = 0; i < getMotorCount(); i++) {
-                motor_disarmed[i] = convertExternalToMotor(sbufReadU16(src));
-            }
+        for (int i = 0; i < getMotorCount(); i++) {
+                //motor_serial[i] = convertExternalToMotor(sbufReadU16(src));
         }
         break;
 
