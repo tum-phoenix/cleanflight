@@ -60,7 +60,13 @@ typedef enum {
     SERVO_SINGLECOPTER_1 = 3,
     SERVO_SINGLECOPTER_2 = 4,
     SERVO_SINGLECOPTER_3 = 5,
-    SERVO_SINGLECOPTER_4 = 6
+    SERVO_SINGLECOPTER_4 = 6,
+
+    SERVO_HELI_LEFT = 0,
+    SERVO_HELI_RIGHT = 1,
+    SERVO_HELI_TOP = 2,
+    SERVO_HELI_RUD = 3
+
 } servoIndex_e; // FIXME rename to servoChannel_e
 
 #define SERVO_PLANE_INDEX_MIN SERVO_FLAPS
@@ -90,6 +96,14 @@ typedef struct servoMixer_s {
 #define MAX_SERVO_BOXES 3
 
 PG_DECLARE_ARRAY(servoMixer_t, MAX_SERVO_RULES, customServoMixers);
+
+// Custom mixer configuration
+typedef struct mixerRules_s {
+    uint8_t servoRuleCount;
+    const servoMixer_t *rule;
+} mixerRules_t;
+
+extern const mixerRules_t servoMixers[];
 
 typedef struct servoParam_s {
     uint32_t reversedSources;               // the direction of servo movement for each input source of the servo mixer, bit set=inverted
@@ -124,3 +138,4 @@ void loadCustomServoMixer(void);
 int servoDirection(int servoIndex, int fromChannel);
 void servoConfigureOutput(void);
 void servosInit(void);
+void servosFilterInit(void);

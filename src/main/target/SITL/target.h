@@ -34,6 +34,8 @@
 
 // file name to save config
 #define EEPROM_FILENAME "eeprom.bin"
+#define EEPROM_IN_RAM
+#define EEPROM_SIZE     32768
 
 #define U_ID_0 0
 #define U_ID_1 1
@@ -44,6 +46,8 @@
 
 #undef SCHEDULER_DELAY_LIMIT
 #define SCHEDULER_DELAY_LIMIT           1
+
+#define USE_FAKE_LED
 
 #define ACC
 #define USE_FAKE_ACC
@@ -109,23 +113,19 @@
 #undef VTX_CONTROL
 #undef VTX_SMARTAUDIO
 #undef VTX_TRAMP
+#undef USE_CAMERA_CONTROL
 
 #undef USE_I2C
 #undef USE_SPI
 
 #define FLASH_SIZE 2048
 
-# define DEFIO_PORT_USED_COUNT 0
-# define DEFIO_PORT_USED_LIST /* empty */
-# define DEFIO_PORT_OFFSET_LIST /* empty */
 
 #define LED_STRIP_TIMER 1
 #define SOFTSERIAL_1_TIMER 2
 #define SOFTSERIAL_2_TIMER 3
 
-#define TARGET_IO_PORTA         0xffff
-#define TARGET_IO_PORTB         0xffff
-#define TARGET_IO_PORTC         0xffff
+#define DEFIO_NO_PORTS   // suppress 'no pins defined' warning
 
 #define WS2811_DMA_TC_FLAG (void *)1
 #define WS2811_DMA_HANDLER_IDENTIFER 0
@@ -136,6 +136,15 @@
 #include <stddef.h>
 
 uint32_t SystemCoreClock;
+
+#ifdef EEPROM_IN_RAM
+extern uint8_t eepromData[EEPROM_SIZE];
+#define __config_start (*eepromData)
+#define __config_end (*ARRAYEND(eepromData))
+#else
+extern uint8_t __config_start;   // configured via linker script when building binaries.
+extern uint8_t __config_end;
+#endif
 
 #define UNUSED(x) (void)(x)
 
@@ -162,7 +171,7 @@ typedef struct
   uint32_t BRR;
 } GPIO_TypeDef;
 
-#define GPIOA_BASE (0x0000)
+#define GPIOA_BASE ((intptr_t)0x0001)
 
 typedef struct
 {
@@ -216,7 +225,7 @@ typedef struct
 } I2C_TypeDef;
 
 typedef enum
-{ 
+{
   FLASH_BUSY = 1,
   FLASH_ERROR_PG,
   FLASH_ERROR_WRP,
@@ -225,28 +234,27 @@ typedef enum
 } FLASH_Status;
 
 typedef struct {
-	double timestamp;	// in seconds
-	double imu_angular_velocity_rpy[3];	// rad/s -> range: +/- 8192; +/- 2000 deg/se
-	double imu_linear_acceleration_xyz[3];	// m/s/s NED, body frame -> sim 1G = 9.80665, FC 1G = 256
-	double imu_orientation_quat[4];	//w, x, y, z
-	double velocity_xyz[3];	// m/s, earth frame
-	double position_xyz[3];	// meters, NED from origin
+    double timestamp;                   // in seconds
+    double imu_angular_velocity_rpy[3]; // rad/s -> range: +/- 8192; +/- 2000 deg/se
+    double imu_linear_acceleration_xyz[3];    // m/s/s NED, body frame -> sim 1G = 9.80665, FC 1G = 256
+    double imu_orientation_quat[4];     //w, x, y, z
+    double velocity_xyz[3];             // m/s, earth frame
+    double position_xyz[3];             // meters, NED from origin
 } fdm_packet;
 typedef struct {
-	float motor_speed[4];	// normal: [0.0, 1.0], 3D: [-1.0, 1.0]
+    float motor_speed[4];   // normal: [0.0, 1.0], 3D: [-1.0, 1.0]
 } servo_packet;
 
 void FLASH_Unlock(void);
 void FLASH_Lock(void);
-FLASH_Status FLASH_ErasePage(uint32_t Page_Address);
-FLASH_Status FLASH_ProgramWord(uint32_t addr, uint32_t Data);
+FLASH_Status FLASH_ErasePage(uintptr_t Page_Address);
+FLASH_Status FLASH_ProgramWord(uintptr_t addr, uint32_t Data);
 
-uint64_t nanos64_real();
-uint64_t micros64_real();
-uint64_t millis64_real();
+uint64_t nanos64_real(void);
+uint64_t micros64_real(void);
+uint64_t millis64_real(void);
 void delayMicroseconds_real(uint32_t us);
-uint64_t micros64();
-uint64_t millis64();
+uint64_t micros64(void);
+uint64_t millis64(void);
 
 int lockMainPID(void);
-

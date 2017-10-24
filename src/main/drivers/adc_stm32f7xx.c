@@ -20,15 +20,16 @@
 #include <string.h>
 
 #include "platform.h"
-#include "system.h"
 
-#include "io.h"
+#include "drivers/accgyro/accgyro.h"
+#include "drivers/system.h"
+
+#include "drivers/io.h"
 #include "io_impl.h"
 #include "rcc.h"
 #include "dma.h"
 
-#include "sensor.h"
-#include "accgyro.h"
+#include "drivers/sensor.h"
 
 #include "adc.h"
 #include "adc_impl.h"
@@ -37,8 +38,12 @@
 #define ADC_INSTANCE                ADC1
 #endif
 
+#ifndef ADC1_DMA_STREAM
+#define ADC1_DMA_STREAM DMA2_Stream4
+#endif
+
 const adcDevice_t adcHardware[] = {
-    { .ADCx = ADC1, .rccADC = RCC_APB2(ADC1), .DMAy_Streamx = DMA2_Stream4, .channel = DMA_CHANNEL_0 },
+    { .ADCx = ADC1, .rccADC = RCC_APB2(ADC1), .DMAy_Streamx = ADC1_DMA_STREAM, .channel = DMA_CHANNEL_0 },
     //{ .ADCx = ADC2, .rccADC = RCC_APB2(ADC2), .DMAy_Streamx = DMA2_Stream1, .channel = DMA_Channel_0 }
 };
 
@@ -195,7 +200,7 @@ void adcInit(const adcConfig_t *config)
 
     //HAL_CLEANINVALIDATECACHE((uint32_t*)&adcValues, configuredAdcChannels);
     /*##-4- Start the conversion process #######################################*/
-    if(HAL_ADC_Start_DMA(&adc.ADCHandle, (uint32_t*)&adcValues, configuredAdcChannels) != HAL_OK)
+    if (HAL_ADC_Start_DMA(&adc.ADCHandle, (uint32_t*)&adcValues, configuredAdcChannels) != HAL_OK)
     {
         /* Start Conversation Error */
     }

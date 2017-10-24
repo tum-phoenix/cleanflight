@@ -23,8 +23,9 @@
 
 #include "build/build_config.h"
 
-#include "drivers/system.h"
 #include "drivers/io.h"
+#include "drivers/time.h"
+
 #include "hardware_revision.h"
 
 uint8_t hardwareRevision = AFF7_UNKNOWN;
@@ -37,7 +38,7 @@ void detectHardwareRevision(void)
     IOInit(HWDetectPin, OWNER_SYSTEM, 0);
     IOConfigGPIO(HWDetectPin, IOCFG_IPU);
 
-    delayMicroseconds(10);  // allow configuration to settle
+    delayMicroseconds(40);  // allow configuration to settle
 
     // Check hardware revision
     if (IORead(HWDetectPin)) {

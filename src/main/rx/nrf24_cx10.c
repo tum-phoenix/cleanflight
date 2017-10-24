@@ -28,9 +28,10 @@
 
 #include "build/build_config.h"
 
+#include "drivers/io.h"
 #include "drivers/rx_nrf24l01.h"
 #include "drivers/rx_xn297.h"
-#include "drivers/system.h"
+#include "drivers/time.h"
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -299,4 +300,3 @@ void cx10Nrf24Init(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfi
     cx10Nrf24Setup((rx_spi_protocol_e)rxConfig->rx_spi_protocol);
 }
 #endif
-

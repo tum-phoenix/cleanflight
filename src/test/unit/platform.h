@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdio.h>
+
 #define USE_PARAMETER_GROUPS
 
 #define U_ID_0 0
@@ -85,7 +87,13 @@ typedef struct
     void* test;
 } USART_TypeDef;
 
+typedef struct
+{
+    void *test;
+} I2C_TypeDef;
+
 #define WS2811_DMA_TC_FLAG (void *)1
 #define WS2811_DMA_HANDLER_IDENTIFER 0
+#define NVIC_PriorityGroup_2 0x500
 
 #include "target.h"

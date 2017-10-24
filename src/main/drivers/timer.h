@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "io_types.h"
+#include "drivers/io_types.h"
 #include "rcc_types.h"
 
 typedef uint16_t captureCompare_t;        // 16 bit on both 103 and 303, just register access must be 32bit sometimes (use timCCR_t)
@@ -45,12 +45,7 @@ typedef uint16_t timCCR_t;
 typedef uint16_t timCCER_t;
 typedef uint16_t timSR_t;
 typedef uint16_t timCNT_t;
-#elif defined(UNIT_TEST)
-typedef uint32_t timCCR_t;
-typedef uint32_t timCCER_t;
-typedef uint32_t timSR_t;
-typedef uint32_t timCNT_t;
-#elif defined(SIMULATOR_BUILD)
+#elif defined(UNIT_TEST) || defined(SIMULATOR_BUILD)
 typedef uint32_t timCCR_t;
 typedef uint32_t timCCER_t;
 typedef uint32_t timSR_t;
@@ -139,6 +134,8 @@ typedef enum {
 #define HARDWARE_TIMER_DEFINITION_COUNT 14
 #endif
 
+#define MHZ_TO_HZ(x) ((x) * 1000000)
+
 extern const timerHardware_t timerHardware[];
 extern const timerDef_t timerDefinitions[];
 
@@ -160,7 +157,7 @@ typedef enum {
     TYPE_TIMER
 } channelType_t;
 
-void timerConfigure(const timerHardware_t *timHw, uint16_t period, uint8_t mhz);  // This interface should be replaced.
+void timerConfigure(const timerHardware_t *timHw, uint16_t period, uint32_t hz);  // This interface should be replaced.
 
 void timerChConfigIC(const timerHardware_t *timHw, bool polarityRising, unsigned inputFilterSamples);
 void timerChConfigICDual(const timerHardware_t* timHw, bool polarityRising, unsigned inputFilterSamples);
@@ -185,9 +182,9 @@ void timerInit(void);
 void timerStart(void);
 void timerForceOverflow(TIM_TypeDef *tim);
 
-uint8_t timerClockDivisor(TIM_TypeDef *tim);
+uint32_t timerClock(TIM_TypeDef *tim);
 
-void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint8_t mhz);  // TODO - just for migration
+void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz);  // TODO - just for migration
 
 rccPeriphTag_t timerRCC(TIM_TypeDef *tim);
 uint8_t timerInputIrq(TIM_TypeDef *tim);
@@ -196,6 +193,9 @@ const timerHardware_t *timerGetByTag(ioTag_t tag, timerUsageFlag_e flag);
 
 #if defined(USE_HAL_DRIVER)
 TIM_HandleTypeDef* timerFindTimerHandle(TIM_TypeDef *tim);
+HAL_StatusTypeDef TIM_DMACmd(TIM_HandleTypeDef *htim, uint32_t Channel, FunctionalState NewState);
+HAL_StatusTypeDef DMA_SetCurrDataCounter(TIM_HandleTypeDef *htim, uint32_t Channel, uint32_t *pData, uint16_t Length);
+uint16_t timerDmaIndex(uint8_t channel);
 #else
 void timerOCInit(TIM_TypeDef *tim, uint8_t channel, TIM_OCInitTypeDef *init);
 void timerOCPreloadConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t preload);
@@ -204,5 +204,6 @@ void timerOCPreloadConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t preload);
 volatile timCCR_t *timerCCR(TIM_TypeDef *tim, uint8_t channel);
 uint16_t timerDmaSource(uint8_t channel);
 
+uint16_t timerGetPrescalerByDesiredHertz(TIM_TypeDef *tim, uint32_t hz);
 uint16_t timerGetPrescalerByDesiredMhz(TIM_TypeDef *tim, uint16_t mhz);
-uint16_t timerGetPeriodByPrescaler(TIM_TypeDef *tim, uint16_t prescaler, uint32_t hertz);
+uint16_t timerGetPeriodByPrescaler(TIM_TypeDef *tim, uint16_t prescaler, uint32_t hz);

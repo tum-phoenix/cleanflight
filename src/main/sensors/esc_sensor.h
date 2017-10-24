@@ -19,6 +19,12 @@
 
 #include "common/time.h"
 
+typedef struct escSensorConfig_s {
+    uint8_t halfDuplex;             // Set to false to listen on the TX pin for telemetry data
+} escSensorConfig_t;
+
+PG_DECLARE(escSensorConfig_t, escSensorConfig);
+
 typedef struct {
     uint8_t dataAge;
     int8_t temperature;
@@ -39,3 +45,7 @@ void escSensorProcess(timeUs_t currentTime);
 
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
 
+void startEscDataRead(uint8_t *frameBuffer, uint8_t frameLength);
+uint8_t getNumberEscBytesRead(void);
+
+uint8_t calculateCrc8(const uint8_t *Buf, const uint8_t BufLen);

@@ -22,6 +22,8 @@
 
 #ifdef TARGET_CONFIG
 
+#include "blackbox/blackbox.h"
+
 #include "common/axis.h"
 #include "common/utils.h"
 
@@ -61,29 +63,33 @@ void targetConfiguration(void)
         rxChannelRangeConfigsMutable(channel)->max = 1860;
     }*/
 
-    for (int profileId = 0; profileId < 2; profileId++) {
-        pidProfilesMutable(0)->P8[ROLL] = 60;
-        pidProfilesMutable(0)->I8[ROLL] = 70;
-        pidProfilesMutable(0)->D8[ROLL] = 17;
-        pidProfilesMutable(0)->P8[PITCH] = 80;
-        pidProfilesMutable(0)->I8[PITCH] = 90;
-        pidProfilesMutable(0)->D8[PITCH] = 18;
-        pidProfilesMutable(0)->P8[YAW] = 200;
-        pidProfilesMutable(0)->I8[YAW] = 45;
-        pidProfilesMutable(0)->P8[PIDLEVEL] = 30;
-        pidProfilesMutable(0)->D8[PIDLEVEL] = 30;
+    for (uint8_t pidProfileIndex = 0; pidProfileIndex < MAX_PROFILE_COUNT; pidProfileIndex++) {
+        pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
 
-        for (int rateProfileId = 0; rateProfileId < CONTROL_RATE_PROFILE_COUNT; rateProfileId++) {
-            controlRateProfilesMutable(rateProfileId)->rcRate8 = 100;
-            controlRateProfilesMutable(rateProfileId)->rcYawRate8 = 110;
-            controlRateProfilesMutable(rateProfileId)->rcExpo8 = 0;
-            controlRateProfilesMutable(rateProfileId)->rates[FD_ROLL] = 77;
-            controlRateProfilesMutable(rateProfileId)->rates[FD_PITCH] = 77;
-            controlRateProfilesMutable(rateProfileId)->rates[FD_YAW] = 80;
+        pidProfile->pid[PID_ROLL].P = 60;
+        pidProfile->pid[PID_ROLL].I = 70;
+        pidProfile->pid[PID_ROLL].D = 17;
+        pidProfile->pid[PID_PITCH].P = 80;
+        pidProfile->pid[PID_PITCH].I = 90;
+        pidProfile->pid[PID_PITCH].D = 18;
+        pidProfile->pid[PID_YAW].P = 200;
+        pidProfile->pid[PID_YAW].I = 45;
+        pidProfile->pid[PID_LEVEL].P = 30;
+        pidProfile->pid[PID_LEVEL].D = 30;
 
-            pidProfilesMutable(0)->dtermSetpointWeight = 200;
-            pidProfilesMutable(0)->setpointRelaxRatio = 50;
-        }
+        pidProfile->dtermSetpointWeight = 200;
+        pidProfile->setpointRelaxRatio = 50;
+    }
+
+    for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {
+        controlRateConfig_t *controlRateConfig = controlRateProfilesMutable(rateProfileIndex);
+
+        controlRateConfig->rcRate8 = 100;
+        controlRateConfig->rcYawRate8 = 110;
+        controlRateConfig->rcExpo8 = 0;
+        controlRateConfig->rates[FD_ROLL] = 77;
+        controlRateConfig->rates[FD_PITCH] = 77;
+        controlRateConfig->rates[FD_YAW] = 80;
     }
 #endif
 
@@ -104,12 +110,17 @@ void targetConfiguration(void)
         compassConfigMutable()->interruptTag = IO_TAG(PB12);
     }
 #endif
+
+#ifdef BLACKBOX
+    if (hardwareRevision >= NAZE32_REV5)
+        blackboxConfigMutable()->device = BLACKBOX_DEVICE_FLASH;
+#endif
 }
 
 void targetValidateConfiguration(void)
 {
     if (hardwareRevision < NAZE32_REV5 && accelerometerConfig()->acc_hardware == ACC_ADXL345) {
         accelerometerConfigMutable()->acc_hardware = ACC_NONE;
-    }  
+    }
 }
 #endif

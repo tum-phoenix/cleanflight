@@ -20,15 +20,14 @@
 #include <string.h>
 
 #include "platform.h"
-#include "system.h"
-#include "gpio.h"
 
-#include "sensor.h"
-#include "accgyro.h"
+#include "drivers/accgyro/accgyro.h"
+#include "drivers/io.h"
+#include "drivers/sensor.h"
+#include "drivers/time.h"
 
 #include "adc.h"
 #include "adc_impl.h"
-#include "io.h"
 #include "rcc.h"
 #include "dma.h"
 
@@ -237,4 +236,3 @@ void adcInit(const adcConfig_t *config)
 
     ADC_StartConversion(adc.ADCx);
 }
-

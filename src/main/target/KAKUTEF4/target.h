@@ -20,18 +20,19 @@
 
 #define USBD_PRODUCT_STRING "KakuteF4-V1"
 
-#define LED0                    PB5
-#define LED1                    PB4
-#define LED2                    PB6
+#define TARGET_CONFIG
+
+#define LED0_PIN                PB5
+#define LED1_PIN                PB4
+#define LED2_PIN                PB6
 
 #define BEEPER                  PC9
 #define BEEPER_INVERTED
-#define INVERTER_PIN_USART3     PB15
+#define INVERTER_PIN_UART3      PB15
 
 // ICM20689 interrupt
 #define USE_EXTI
 #define MPU_INT_EXTI            PC5
-#define EXTI_CALLBACK_HANDLER_COUNT 1 // MPU data ready
 //#define DEBUG_MPU_DATA_READY_INTERRUPT
 #define USE_MPU_DATA_READY_SIGNAL
 #define ENSURE_MPU_DATA_READY_IS_LOW
@@ -63,16 +64,16 @@
 #define MAX7456_SPI_INSTANCE    SPI3
 #define MAX7456_SPI_CS_PIN      PB14
 
-#define MAX7456_DMA_CHANNEL_TX              DMA1_Stream5
-#define MAX7456_DMA_CHANNEL_RX              DMA1_Stream0
-#define MAX7456_DMA_IRQ_HANDLER_ID          DMA1_ST0_HANDLER
+//#define MAX7456_DMA_CHANNEL_TX              DMA1_Stream5
+//#define MAX7456_DMA_CHANNEL_RX              DMA1_Stream0
+//#define MAX7456_DMA_IRQ_HANDLER_ID          DMA1_ST0_HANDLER
 
 #define M25P16_CS_PIN           PB3
 #define M25P16_SPI_INSTANCE     SPI3
 
 #define USE_FLASHFS
 #define USE_FLASH_M25P16
-#define USE_FLASH_TOOLS
+//#define USE_FLASH_TOOLS
 
 #define USE_VCP
 #define VBUS_SENSING_PIN        PA8
@@ -97,7 +98,7 @@
 #define SERIAL_PORT_COUNT 6
 
 #define USE_ESCSERIAL
-#define ESCSERIAL_TIMER_TX_HARDWARE 0 // PWM 1
+#define ESCSERIAL_TIMER_TX_PIN  PC7  // (HARDARE=0,PPM)
 
 #define USE_SPI
 
@@ -117,7 +118,7 @@
 #define USE_I2C_DEVICE_1
 #define I2C_DEVICE              (I2CDEV_1)
 
-#define BOARD_HAS_VOLTAGE_DIVIDER
+#define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #define USE_ADC
 #define VBAT_ADC_PIN                PC3
 #define VBAT_ADC_CHANNEL            ADC_Channel_13
@@ -128,10 +129,11 @@
 #define RSSI_ADC_PIN                PC1
 #define RSSI_ADC_CHANNEL            ADC_Channel_11
 
-#define DEFAULT_FEATURES        (FEATURE_OSD)
+#define DEFAULT_FEATURES        ( FEATURE_TELEMETRY | FEATURE_OSD )
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART3
+#define TELEMETRY_UART          SERIAL_PORT_USART1
 
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
@@ -141,4 +143,3 @@
 
 #define USABLE_TIMER_CHANNEL_COUNT 8
 #define USED_TIMERS  ( TIM_N(2) | TIM_N(3) | TIM_N(5)  |  TIM_N(8))
-

@@ -28,7 +28,6 @@
 #include "common/utils.h"
 
 #include "drivers/adc.h"
-#include "drivers/system.h"
 
 #include "config/parameter_group.h"
 #include "config/parameter_group_ids.h"
@@ -177,7 +176,7 @@ void voltageMeterADCInit(void)
         voltageMeterADCState_t *state = &voltageMeterADCStates[i];
         memset(state, 0, sizeof(voltageMeterADCState_t));
 
-        biquadFilterInitLPF(&state->filter, VBATT_LPF_FREQ, 50000);
+        biquadFilterInitLPF(&state->filter, VBAT_LPF_FREQ, 50000);
     }
 }
 
@@ -195,7 +194,7 @@ typedef struct voltageMeterESCState_s {
 static voltageMeterESCState_t voltageMeterESCState;
 #endif
 
-#define VBAT_LPF_FREQ  0.4f
+
 
 void voltageMeterESCInit(void)
 {

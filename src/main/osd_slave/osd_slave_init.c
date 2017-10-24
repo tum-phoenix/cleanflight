@@ -33,32 +33,33 @@
 #include "config/parameter_group.h"
 #include "config/parameter_group_ids.h"
 
-#include "drivers/nvic.h"
-#include "drivers/sensor.h"
-#include "drivers/system.h"
+#include "drivers/adc.h"
+#include "drivers/bus.h"
+#include "drivers/bus_i2c.h"
+#include "drivers/bus_spi.h"
 #include "drivers/dma.h"
+#include "drivers/exti.h"
+#include "drivers/inverter.h"
 #include "drivers/io.h"
 #include "drivers/light_led.h"
-#include "drivers/sound_beeper.h"
-#include "drivers/timer.h"
+#include "drivers/nvic.h"
+#include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
 #include "drivers/serial_uart.h"
-#include "drivers/adc.h"
-#include "drivers/bus_i2c.h"
-#include "drivers/bus_spi.h"
-#include "drivers/inverter.h"
-#include "drivers/usb_io.h"
+#include "drivers/sound_beeper.h"
+#include "drivers/system.h"
+#include "drivers/time.h"
+#include "drivers/timer.h"
 #include "drivers/transponder_ir.h"
-#include "drivers/exti.h"
+#include "drivers/usb_io.h"
 
+#include "fc/cli.h"
 #include "fc/config.h"
-#include "osd_slave/osd_slave_init.h"
+#include "fc/rc_controls.h"
 #include "fc/fc_msp.h"
 #include "fc/fc_tasks.h"
-#include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
-#include "fc/cli.h"
 
 #include "msp/msp_serial.h"
 
@@ -67,11 +68,13 @@
 
 #include "io/beeper.h"
 #include "io/displayport_max7456.h"
-#include "io/serial.h"
 #include "io/flashfs.h"
 #include "io/ledstrip.h"
-#include "io/transponder_ir.h"
 #include "io/osd_slave.h"
+#include "io/serial.h"
+#include "io/transponder_ir.h"
+
+#include "osd_slave/osd_slave_init.h"
 
 #include "scheduler/scheduler.h"
 
@@ -88,10 +91,6 @@
 
 #ifdef TARGET_PREINIT
 void targetPreInit(void);
-#endif
-
-#ifdef TARGET_BUS_INIT
-void targetBusInit(void);
 #endif
 
 uint8_t systemState = SYSTEM_STATE_INITIALISING;
@@ -112,6 +111,20 @@ static IO_t busSwitchResetPin        = IO_NONE;
 
     // ENABLE
     IOLo(busSwitchResetPin);
+}
+#endif
+
+
+#ifdef USE_SPI
+// Pre-initialize all CS pins to input with pull-up.
+// It's sad that we can't do this with an initialized array,
+// since we will be taking care of configurable CS pins shortly.
+
+void spiPreInit(void)
+{
+#ifdef USE_MAX7456
+    spiPreInitCs(IO_TAG(MAX7456_SPI_CS_PIN));
+#endif
 }
 #endif
 
@@ -163,6 +176,10 @@ void init(void)
     busSwitchInit();
 #endif
 
+#if defined(USE_UART) && !defined(SITL)
+    uartPinConfigure(serialPinConfig());
+#endif
+
     serialInit(false, SERIAL_PORT_NONE);
 
 #ifdef BEEPER
@@ -178,6 +195,11 @@ void init(void)
 #else
 
 #ifdef USE_SPI
+    spiPinConfigure();
+
+    // Initialize CS lines and keep them high
+    spiPreInit();
+
 #ifdef USE_SPI_DEVICE_1
     spiInit(SPIDEV_1);
 #endif
@@ -193,6 +215,11 @@ void init(void)
 #endif /* USE_SPI */
 
 #ifdef USE_I2C
+    i2cHardwareConfigure();
+
+    // Note: Unlike UARTs which are configured when client is present,
+    // I2C buses are initialized unconditionally if they are configured.
+
 #ifdef USE_I2C_DEVICE_1
     i2cInit(I2CDEV_1);
 #endif
@@ -201,10 +228,10 @@ void init(void)
 #endif
 #ifdef USE_I2C_DEVICE_3
     i2cInit(I2CDEV_3);
-#endif  
+#endif
 #ifdef USE_I2C_DEVICE_4
     i2cInit(I2CDEV_4);
-#endif  
+#endif
 #endif /* USE_I2C */
 
 #endif /* TARGET_BUS_INIT */
@@ -236,7 +263,7 @@ void init(void)
     LED0_OFF;
     LED1_OFF;
 
-    mspOsdSlaveInit();
+    mspInit();
     mspSerialInit();
 
 #ifdef USE_CLI
@@ -279,7 +306,7 @@ void init(void)
     // Latch active features AGAIN since some may be modified by init().
     latchActiveFeatures();
 
-    osdSlaveTasksInit();
+    fcTasksInit();
 
     systemState |= SYSTEM_STATE_READY;
 }

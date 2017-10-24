@@ -24,10 +24,10 @@
 #define USE_HARDWARE_REVISION_DETECTION
 #define TARGET_BUS_INIT
 
-#define BOARD_HAS_VOLTAGE_DIVIDER
+#define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 
-#define LED0                    PB3
-#define LED1                    PB4
+#define LED0_PIN                PB3
+#define LED1_PIN                PB4
 
 #define BEEPER                  PA12
 
@@ -36,6 +36,7 @@
 #define TARGET_BOARD_IDENTIFIER "AFMN"
 #elif defined(BEEBRAIN)
 #define BRUSHED_MOTORS
+#undef USE_SERVOS
 #define TARGET_BOARD_IDENTIFIER "BEBR"
 #define TARGET_CONFIG
 #define DEFAULT_FEATURES FEATURE_MOTOR_STOP
@@ -48,6 +49,8 @@
 //#define BARO_EOC_PIN            PC14
 
 #define INVERTER_PIN_UART2        PB2 // PB2 (BOOT1) abused as inverter select GPIO
+
+#define USE_RX_MSP
 
 #define USE_EXTI
 #define MAG_INT_EXTI            PC14
@@ -101,15 +104,13 @@
 #define USE_BARO_MS5611 // needed for Flip32 board
 #define USE_BARO_BMP280
 
-#define MAG
-#define USE_MAG_HMC5883
-#define MAG_HMC5883_ALIGN       CW180_DEG
+//#define MAG
+//#define USE_MAG_HMC5883
+//#define MAG_HMC5883_ALIGN       CW180_DEG
 
 //#define SONAR
-//#define SONAR_TRIGGER_PIN       PB0
-//#define SONAR_ECHO_PIN          PB1
-//#define SONAR_TRIGGER_PIN_PWM   PB8
-//#define SONAR_ECHO_PIN_PWM      PB9
+//#define SONAR_TRIGGER_PIN       PB0/PB8
+//#define SONAR_ECHO_PIN          PB1/PB9
 
 #define USE_UART1
 #define USE_UART2
@@ -142,11 +143,7 @@
 #define RSSI_ADC_PIN            PA1
 #define EXTERNAL1_ADC_PIN       PA5
 
-#define SPEKTRUM_BIND_PIN       PA3
-
-#if !defined(BRUSHED_MOTORS)
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
-#endif
+#define USE_SPEKTRUM_BIND_PIN
 
 #define DEFAULT_RX_FEATURE      FEATURE_RX_PPM
 

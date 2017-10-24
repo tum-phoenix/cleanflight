@@ -39,7 +39,6 @@
 #include "telemetry/telemetry.h"
 
 #include "sensors/battery.h"
-#include "sensors/compass.h"
 
 #include "hardware_revision.h"
 
@@ -52,8 +51,6 @@
 // alternative defaults settings for AlienFlight targets
 void targetConfiguration(void)
 {
-    compassConfigMutable()->mag_hardware = MAG_NONE;            // disabled by default
-
     if (hardwareMotorType == MOTOR_BRUSHED) {
         motorConfigMutable()->dev.motorPwmRate = BRUSHED_MOTORS_PWM_RATE;
         pidConfigMutable()->pid_process_denom = 1;
@@ -65,22 +62,26 @@ void targetConfiguration(void)
         rxConfigMutable()->spektrum_sat_bind_autoreset = 1;
     } else {
         rxConfigMutable()->serialrx_provider = SERIALRX_SBUS;
-        rxConfigMutable()->sbus_inversion = 0;
-        serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(TELEMETRY_UART)].functionMask = FUNCTION_TELEMETRY_FRSKY;
-        telemetryConfigMutable()->telemetry_inversion = 0;
+        rxConfigMutable()->serialrx_inverted = true;
+        serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIALRX_UART)].functionMask = FUNCTION_TELEMETRY_FRSKY | FUNCTION_RX_SERIAL;
+        telemetryConfigMutable()->telemetry_inverted = false;
         batteryConfigMutable()->voltageMeterSource = VOLTAGE_METER_ADC;
         batteryConfigMutable()->currentMeterSource = CURRENT_METER_ADC;
         featureSet(FEATURE_TELEMETRY);
     }
 
-    pidProfilesMutable(0)->P8[FD_ROLL] = 53;
-    pidProfilesMutable(0)->I8[FD_ROLL] = 45;
-    pidProfilesMutable(0)->D8[FD_ROLL] = 52;
-    pidProfilesMutable(0)->P8[FD_PITCH] = 53;
-    pidProfilesMutable(0)->I8[FD_PITCH] = 45;
-    pidProfilesMutable(0)->D8[FD_PITCH] = 52;
-    pidProfilesMutable(0)->P8[FD_YAW] = 64;
-    pidProfilesMutable(0)->D8[FD_YAW] = 18;
+    for (uint8_t pidProfileIndex = 0; pidProfileIndex < MAX_PROFILE_COUNT; pidProfileIndex++) {
+        pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+
+        pidProfile->pid[FD_ROLL].P = 53;
+        pidProfile->pid[FD_ROLL].I = 45;
+        pidProfile->pid[FD_ROLL].D = 52;
+        pidProfile->pid[FD_PITCH].P = 53;
+        pidProfile->pid[FD_PITCH].I = 45;
+        pidProfile->pid[FD_PITCH].D = 52;
+        pidProfile->pid[FD_YAW].P = 64;
+        pidProfile->pid[FD_YAW].D = 18;
+    }
 
     *customMotorMixerMutable(0) = (motorMixer_t){ 1.0f, -0.414178f,  1.0f, -1.0f };    // REAR_R
     *customMotorMixerMutable(1) = (motorMixer_t){ 1.0f, -0.414178f, -1.0f,  1.0f };    // FRONT_R
