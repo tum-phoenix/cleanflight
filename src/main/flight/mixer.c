@@ -113,7 +113,7 @@ static float motorMixRange;
 
 float motor[MAX_SUPPORTED_MOTORS];
 // phoenix modification
-uint8_t overwrite_channel_motors = 7;
+uint8_t overwrite_channel_phx = 7;
 float motor_fc[MAX_SUPPORTED_MOTORS];
 float motor_serial[MAX_SUPPORTED_MOTORS];
 
@@ -658,12 +658,12 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS])
 
         // TUM Phoenix MOD
         motor_fc[i] = motorOutput;
-        if (rcRaw_pilot[overwrite_channel_motors] > 1600) {
-            motor[i] = motor_serial[i];
+        if (rcRaw_pilot[overwrite_channel_phx] > 1600) {
+            motor[i] = constrain(motor_serial[i], disarmMotorOutput, motorRangeMax); //motor_serial[i];
         } else {
             motor[i] = motorOutput;
         }
-        motor[i] = motorOutput;
+        //motor[i] = motorOutput;
     }
 
     // Disarmed mode

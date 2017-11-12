@@ -1470,7 +1470,7 @@ static mspResult_e mspProcessInCommand(uint8_t cmdMSP, sbuf_t *src)
 
     case MSP_SET_MOTOR:
         for (int i = 0; i < getMotorCount(); i++) {
-                //motor_serial[i] = convertExternalToMotor(sbufReadU16(src));
+            motor_serial[i] = convertExternalToMotor(sbufReadU16(src));
         }
         break;
 

@@ -514,8 +514,8 @@ static void readRxChannelsApplyRanges(void)
     // PhoenixMOD
     // if the overwrite_channel of the pilot RC is high,
     // then the serial msp_rc is written into the rcRaw data array.
-    uint8_t overwrite_channel = 7;
-    if (rcRaw_pilot[overwrite_channel] > 1600) {
+    uint8_t overwrite_channel_RC_phx = 8;
+    if (rcRaw_pilot[overwrite_channel_RC_phx] > 1600) {
         for (int channel = 0; channel < rxRuntimeConfig.channelCount; channel++) {
             uint8_t rawChannel = channel < RX_MAPPABLE_CHANNEL_COUNT ? rxConfig()->rcmap[channel] : channel;
 
