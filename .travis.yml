@@ -1,28 +1,9 @@
+os:
+  - linux
 
-env:
-#  - PUBLISHMETA=True
-#  - PUBLISHDOCS=True
-# Specify the main Mafile supported goals.
-  - GOAL=test
-  - GOAL=targets-group-1
-  - GOAL=targets-group-2
-  - GOAL=targets-group-3
-  - GOAL=targets-group-4
-  - GOAL=targets-group-rest
-#  - GOAL=all
-#  - GOAL=AFROMINI
-#  - GOAL=AIORACERF3
-#  - GOAL=...
-# Or specify targets to run.
-#  - TARGET=AFROMINI
-#  - TARGET=AIORACERF3
-#  - TARGET=...
-
-# use new docker environment
 sudo: false
 
-git:
-  depth: 5
+dist: trusty
 
 addons:
   apt:
@@ -34,11 +15,32 @@ addons:
       - time
       - libblocksruntime-dev
 
+git:
+  depth: 5
+
 # We use cpp for unit tests, and c for the main project.
 language: cpp
 compiler: clang
-dist: trusty
 
+env:
+#  - PUBLISHMETA=True
+#  - PUBLISHDOCS=True
+# Specify the main Mafile supported goals.
+  - GOAL=test
+  - GOAL=targets-group-1
+  - GOAL=targets-group-2
+  - GOAL=targets-group-3
+  - GOAL=targets-group-4
+  - GOAL=unsupported
+  - GOAL=targets-group-rest
+#  - GOAL=all
+#  - GOAL=AFROMINI
+#  - GOAL=AIORACERF3
+#  - GOAL=...
+# Or specify targets to run.
+#  - TARGET=AFROMINI
+#  - TARGET=AIORACERF3
+#  - TARGET=...
 
 before_install:
   - pip install --user cpp-coveralls
@@ -48,10 +50,11 @@ install:
   - make arm_sdk_install
 
 before_script:
-  - tools/gcc-arm-none-eabi-6-2017-q2-update/bin/arm-none-eabi-gcc --version
+  - make arm_sdk_version
   - clang --version
   - clang++ --version
   - gcc --version
+  - export V=0
 
 script: ./.travis.sh
 
@@ -63,15 +66,10 @@ after_success:
   - coveralls-lcov coverage.info # uploads to coveralls
 
 cache:
+  timeout: 1000
   directories:
   - downloads
   - tools
-
-
-#notifications:
-#  irc: "chat.freenode.net#cleanflight"
-#  use_notice: true
-#  skip_join: true
 
 notifications:
   irc:

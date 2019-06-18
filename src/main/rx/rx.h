@@ -1,28 +1,34 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
 #include "common/time.h"
-#include "config/parameter_group.h"
+
+#include "pg/pg.h"
+#include "pg/rx.h"
+
+#include "drivers/io_types.h"
 
 #define STICK_CHANNEL_COUNT 4
 
-#define PWM_RANGE_ZERO 0 // FIXME should all usages of this be changed to use PWM_RANGE_MIN?
 #define PWM_RANGE_MIN 1000
 #define PWM_RANGE_MAX 2000
 #define PWM_RANGE_MIDDLE (PWM_RANGE_MIN + ((PWM_RANGE_MAX - PWM_RANGE_MIN) / 2))
@@ -41,7 +47,9 @@
 typedef enum {
     RX_FRAME_PENDING = 0,
     RX_FRAME_COMPLETE = (1 << 0),
-    RX_FRAME_FAILSAFE = (1 << 1)
+    RX_FRAME_FAILSAFE = (1 << 1),
+    RX_FRAME_PROCESSING_REQUIRED = (1 << 2),
+    RX_FRAME_DROPPED = (1 << 3)
 } rxFrameState_e;
 
 typedef enum {
@@ -57,6 +65,7 @@ typedef enum {
     SERIALRX_CRSF = 9,
     SERIALRX_SRXL = 10,
     SERIALRX_TARGET_CUSTOM = 11,
+    SERIALRX_FPORT = 12,
 } SerialRXType;
 
 #define MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT          12
@@ -72,18 +81,15 @@ typedef enum {
 #define MAX_SUPPORTED_RX_PARALLEL_PWM_OR_PPM_CHANNEL_COUNT MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT
 #endif
 
-extern uint16_t rssi;
-
 extern const char rcChannelLetters[];
 
 extern int16_t rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2000]
 extern int16_t rcRaw_pilot[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2000] modification for TUM Phoenix
 
-#define RX_MAPPABLE_CHANNEL_COUNT 8
-
 #define RSSI_SCALE_MIN 1
 #define RSSI_SCALE_MAX 255
-#define RSSI_SCALE_DEFAULT (4095.0f / 100.0f + 0.5f) // 100% @ 4095
+
+#define RSSI_SCALE_DEFAULT 100
 
 typedef enum {
     RX_FAILSAFE_MODE_AUTO = 0,
@@ -151,14 +157,29 @@ PG_DECLARE(rxConfig_t, rxConfig);
 
 struct rxRuntimeConfig_s;
 typedef uint16_t (*rcReadRawDataFnPtr)(const struct rxRuntimeConfig_s *rxRuntimeConfig, uint8_t chan); // used by receiver driver to return channel data
-typedef uint8_t (*rcFrameStatusFnPtr)(void);
+typedef uint8_t (*rcFrameStatusFnPtr)(struct rxRuntimeConfig_s *rxRuntimeConfig);
+typedef bool (*rcProcessFrameFnPtr)(const struct rxRuntimeConfig_s *rxRuntimeConfig);
 
 typedef struct rxRuntimeConfig_s {
-    uint8_t          channelCount; // number of RC channels as reported by current input driver
-    uint16_t         rxRefreshRate;
-    rcReadRawDataFnPtr rcReadRawFn;
-    rcFrameStatusFnPtr rcFrameStatusFn;
+    uint8_t             channelCount; // number of RC channels as reported by current input driver
+    uint16_t            rxRefreshRate;
+    rcReadRawDataFnPtr  rcReadRawFn;
+    rcFrameStatusFnPtr  rcFrameStatusFn;
+    rcProcessFrameFnPtr rcProcessFrameFn;
+    uint16_t            *channelData;
+    void                *frameData;
 } rxRuntimeConfig_t;
+
+typedef enum {
+    RSSI_SOURCE_NONE = 0,
+    RSSI_SOURCE_ADC,
+    RSSI_SOURCE_RX_CHANNEL,
+    RSSI_SOURCE_RX_PROTOCOL,
+    RSSI_SOURCE_MSP,
+    RSSI_SOURCE_FRAME_ERRORS,
+} rssiSource_e;
+
+extern rssiSource_e rssiSource;
 
 extern rxRuntimeConfig_t rxRuntimeConfig; //!!TODO remove this extern, only needed once for channelCount
 
@@ -166,12 +187,20 @@ void rxInit(void);
 bool rxUpdateCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs);
 bool rxIsReceivingSignal(void);
 bool rxAreFlightChannelsValid(void);
-void calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs);
+bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs);
 
-void parseRcChannels(const char *input, rxConfig_t *rxConfig);
+struct rxConfig_s;
 
+void parseRcChannels(const char *input, struct rxConfig_s *rxConfig);
+
+#define RSSI_MAX_VALUE 1023
+
+void setRssiDirect(uint16_t newRssi, rssiSource_e source);
+void setRssi(uint16_t rssiValue, rssiSource_e source);
+void setRssiMsp(uint8_t newMspRssi);
 void updateRSSI(timeUs_t currentTimeUs);
-void processRssi(uint8_t rssiPercentage);
+uint16_t getRssi(void);
+uint8_t getRssiPercent(void);
 
 void resetAllRxChannelRangeConfigurations(rxChannelRangeConfig_t *rxChannelRangeConfig);
 

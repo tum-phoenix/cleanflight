@@ -1,18 +1,21 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
@@ -21,15 +24,15 @@
 
 #include "platform.h"
 
-#ifdef TELEMETRY
+#ifdef USE_TELEMETRY
 
-#include "config/feature.h"
 #include "build/atomic.h"
 #include "build/build_config.h"
 #include "build/version.h"
 
-#include "config/parameter_group.h"
-#include "config/parameter_group_ids.h"
+#include "config/feature.h"
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
 #include "common/crc.h"
 #include "common/maths.h"
@@ -37,29 +40,30 @@
 #include "common/streambuf.h"
 #include "common/utils.h"
 
+#include "cms/cms.h"
+
 #include "drivers/nvic.h"
 
-#include "sensors/battery.h"
-
-#include "io/gps.h"
-#include "io/serial.h"
-
+#include "fc/config.h"
 #include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
 
-#include "io/gps.h"
-
 #include "flight/imu.h"
 
-#include "rx/rx.h"
+#include "interface/crsf_protocol.h"
+
+#include "io/displayport_crsf.h"
+#include "io/gps.h"
+#include "io/serial.h"
+
 #include "rx/crsf.h"
+
+#include "sensors/battery.h"
+#include "sensors/sensors.h"
 
 #include "telemetry/telemetry.h"
 #include "telemetry/crsf.h"
 #include "telemetry/msp_shared.h"
-
-#include "fc/config.h"
-#include "sensors/sensors.h"
 
 #define CRSF_CYCLETIME_US                   100000 // 100ms, 10 Hz
 #define CRSF_DEVICEINFO_VERSION             0x01
@@ -127,7 +131,7 @@ static void crsfInitializeFrame(sbuf_t *dst)
     dst->ptr = crsfFrame;
     dst->end = ARRAYEND(crsfFrame);
 
-    sbufWriteU8(dst, CRSF_ADDRESS_BROADCAST);
+    sbufWriteU8(dst, CRSF_SYNC_BYTE);
 }
 
 static void crsfFinalize(sbuf_t *dst)
@@ -178,7 +182,7 @@ void crsfFrameGps(sbuf_t *dst)
     sbufWriteU16BigEndian(dst, (gpsSol.groundSpeed * 36 + 5) / 10); // gpsSol.groundSpeed is in 0.1m/s
     sbufWriteU16BigEndian(dst, gpsSol.groundCourse * 10); // gpsSol.groundCourse is degrees * 10
     //Send real GPS altitude only if it's reliable (there's a GPS fix)
-    const uint16_t altitude = (STATE(GPS_FIX) ? gpsSol.llh.alt : 0) + 1000;
+    const uint16_t altitude = (STATE(GPS_FIX) ? gpsSol.llh.alt / 100 : 0) + 1000;
     sbufWriteU16BigEndian(dst, altitude);
     sbufWriteU8(dst, gpsSol.numSat);
 }
@@ -297,7 +301,7 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
     sbufWriteU8(dst, 0);
     sbufWriteU8(dst, CRSF_FRAMETYPE_DEVICE_INFO);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
-    sbufWriteU8(dst, CRSF_ADDRESS_BETAFLIGHT);
+    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
     sbufWriteStringWithZeroTerminator(dst, buff);
     for (unsigned int ii=0; ii<12; ii++) {
         sbufWriteU8(dst, 0x00);
@@ -306,6 +310,37 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
     sbufWriteU8(dst, CRSF_DEVICEINFO_VERSION);
     *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
+
+#if defined(USE_CRSF_CMS_TELEMETRY)
+
+static void crsfFrameDisplayPortRow(sbuf_t *dst, uint8_t row)
+{
+    uint8_t *lengthPtr = sbufPtr(dst);
+    uint8_t buflen = crsfDisplayPortScreen()->cols;
+    char *rowStart = &crsfDisplayPortScreen()->buffer[row * buflen];
+    const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + buflen;
+    sbufWriteU8(dst, frameLength);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
+    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
+    sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_UPDATE);
+    sbufWriteU8(dst, row);
+    sbufWriteData(dst, rowStart, buflen);
+    *lengthPtr = sbufPtr(dst) - lengthPtr;
+}
+
+static void crsfFrameDisplayPortClear(sbuf_t *dst)
+{
+    uint8_t *lengthPtr = sbufPtr(dst);
+    sbufWriteU8(dst, CRSF_DISPLAY_PORT_COLS_MAX + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
+    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
+    sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_CLEAR);
+    *lengthPtr = sbufPtr(dst) - lengthPtr;
+}
+
+#endif
 
 #define BV(x)  (1 << (x)) // bit value
 
@@ -340,7 +375,7 @@ void crsfSendMspResponse(uint8_t *payload)
     sbufWriteU8(dst, CRSF_FRAME_TX_MSP_FRAME_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
     sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
-    sbufWriteU8(dst, CRSF_ADDRESS_BETAFLIGHT);
+    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
     sbufWriteData(dst, payload, CRSF_FRAME_TX_MSP_FRAME_SIZE);
     crsfFinalize(dst);
 }
@@ -349,6 +384,7 @@ void crsfSendMspResponse(uint8_t *payload)
 static void processCrsf(void)
 {
     static uint8_t crsfScheduleIndex = 0;
+
     const uint8_t currentSchedule = crsfSchedule[crsfScheduleIndex];
 
     sbuf_t crsfPayloadBuf;
@@ -370,7 +406,7 @@ static void processCrsf(void)
         crsfFrameFlightMode(dst);
         crsfFinalize(dst);
     }
-#ifdef GPS
+#ifdef USE_GPS
     if (currentSchedule & BV(CRSF_FRAME_GPS_INDEX)) {
         crsfInitializeFrame(dst);
         crsfFrameGps(dst);
@@ -385,6 +421,7 @@ void crsfScheduleDeviceInfoResponse(void)
     deviceInfoReplyPending = true;
 }
 
+
 void initCrsfTelemetry(void)
 {
     // check if there is a serial port open for CRSF telemetry (ie opened by the CRSF RX)
@@ -396,11 +433,17 @@ void initCrsfTelemetry(void)
     mspReplyPending = false;
 #endif
 
+#if defined(USE_CMS) && defined(USE_CRSF_CMS_TELEMETRY)
+    cmsDisplayPortRegister(displayPortCrsfInit());
+#endif
+
     int index = 0;
     if (sensors(SENSOR_ACC)) {
         crsfSchedule[index++] = BV(CRSF_FRAME_ATTITUDE_INDEX);
     }
-    crsfSchedule[index++] = BV(CRSF_FRAME_BATTERY_SENSOR_INDEX);
+    if (isBatteryVoltageConfigured() || isAmperageConfigured()) {
+        crsfSchedule[index++] = BV(CRSF_FRAME_BATTERY_SENSOR_INDEX);
+    }
     crsfSchedule[index++] = BV(CRSF_FRAME_FLIGHT_MODE_INDEX);
     if (feature(FEATURE_GPS)) {
         crsfSchedule[index++] = BV(CRSF_FRAME_GPS_INDEX);
@@ -413,6 +456,31 @@ bool checkCrsfTelemetryState(void)
 {
     return crsfTelemetryEnabled;
 }
+
+#if defined(USE_CRSF_CMS_TELEMETRY)
+void crsfProcessDisplayPortCmd(uint8_t *frameStart)
+{
+    uint8_t cmd = *frameStart;
+    switch (cmd) {
+    case CRSF_DISPLAYPORT_SUBCMD_OPEN: ;
+        const uint8_t rows = *(frameStart + CRSF_DISPLAYPORT_OPEN_ROWS_OFFSET);
+        const uint8_t cols = *(frameStart + CRSF_DISPLAYPORT_OPEN_COLS_OFFSET);
+        crsfDisplayPortSetDimensions(rows, cols);
+        crsfDisplayPortMenuOpen();
+        break;
+    case CRSF_DISPLAYPORT_SUBCMD_CLOSE:
+        crsfDisplayPortMenuExit();
+        break;
+    case CRSF_DISPLAYPORT_SUBCMD_POLL:
+        crsfDisplayPortRefresh();
+        break;
+    default:
+        break;
+    }
+
+}
+
+#endif
 
 /*
  * Called periodically by the scheduler
@@ -429,25 +497,55 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
     // in between the RX frames.
     crsfRxSendTelemetryData();
 
+    // Send ad-hoc response frames as soon as possible
 #if defined(USE_MSP_OVER_TELEMETRY)
     if (mspReplyPending) {
         mspReplyPending = handleCrsfMspFrameBuffer(CRSF_FRAME_TX_MSP_FRAME_SIZE, &crsfSendMspResponse);
+        crsfLastCycleTime = currentTimeUs; // reset telemetry timing due to ad-hoc request
+        return;
+    }
+#endif
+
+    if (deviceInfoReplyPending) {
+        sbuf_t crsfPayloadBuf;
+        sbuf_t *dst = &crsfPayloadBuf;
+        crsfInitializeFrame(dst);
+        crsfFrameDeviceInfo(dst);
+        crsfFinalize(dst);
+        deviceInfoReplyPending = false;
+        crsfLastCycleTime = currentTimeUs; // reset telemetry timing due to ad-hoc request
+        return;
+    }
+
+#if defined(USE_CRSF_CMS_TELEMETRY)
+    if (crsfDisplayPortScreen()->reset) {
+        crsfDisplayPortScreen()->reset = false;
+        sbuf_t crsfDisplayPortBuf;
+        sbuf_t *dst = &crsfDisplayPortBuf;
+        crsfInitializeFrame(dst);
+        crsfFrameDisplayPortClear(dst);
+        crsfFinalize(dst);
+        crsfLastCycleTime = currentTimeUs;
+        return;
+    }
+    const int nextRow = crsfDisplayPortNextRow();
+    if (nextRow >= 0) {
+        sbuf_t crsfDisplayPortBuf;
+        sbuf_t *dst = &crsfDisplayPortBuf;
+        crsfInitializeFrame(dst);
+        crsfFrameDisplayPortRow(dst, nextRow);
+        crsfFinalize(dst);
+        crsfDisplayPortScreen()->pendingTransport[nextRow] = false;
+        crsfLastCycleTime = currentTimeUs;
+        return;
     }
 #endif
 
     // Actual telemetry data only needs to be sent at a low frequency, ie 10Hz
-    if (currentTimeUs >= crsfLastCycleTime + CRSF_CYCLETIME_US) {
+    // Spread out scheduled frames evenly so each frame is sent at the same frequency.
+    if (currentTimeUs >= crsfLastCycleTime + (CRSF_CYCLETIME_US / crsfScheduleCount)) {
         crsfLastCycleTime = currentTimeUs;
-        if (deviceInfoReplyPending) {
-            sbuf_t crsfPayloadBuf;
-            sbuf_t *dst = &crsfPayloadBuf;
-            crsfInitializeFrame(dst);
-            crsfFrameDeviceInfo(dst);
-            crsfFinalize(dst);
-            deviceInfoReplyPending = false;
-        } else {
-            processCrsf();
-        }
+        processCrsf();
     }
 }
 
@@ -468,7 +566,7 @@ int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType)
     case CRSF_FRAMETYPE_FLIGHT_MODE:
         crsfFrameFlightMode(sbuf);
         break;
-#if defined(GPS)
+#if defined(USE_GPS)
     case CRSF_FRAMETYPE_GPS:
         crsfFrameGps(sbuf);
         break;

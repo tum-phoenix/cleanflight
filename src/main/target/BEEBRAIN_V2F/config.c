@@ -1,27 +1,30 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <platform.h>
+#include "platform.h"
 
-#ifdef TARGET_CONFIG
+#ifdef USE_TARGET_CONFIG
 
 #include "common/axis.h"
 #include "common/maths.h"
@@ -33,9 +36,14 @@
 
 #include "fc/config.h"
 #include "fc/controlrate_profile.h"
+#include "fc/rc_modes.h"
+#include "fc/rc_controls.h"
 
 #include "flight/mixer.h"
 #include "flight/pid.h"
+
+#include "pg/vcd.h"
+#include "pg/rx.h"
 
 #include "rx/rx.h"
 
@@ -81,9 +89,10 @@ void targetConfiguration(void)
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {
         controlRateConfig_t *controlRateConfig = controlRateProfilesMutable(rateProfileIndex);
 
-        controlRateConfig->rcYawRate8      = 120;
-        controlRateConfig->rcExpo8         = 15;
-        controlRateConfig->rcYawExpo8      = 15;
+        controlRateConfig->rcRates[FD_YAW] = 120;
+        controlRateConfig->rcExpo[FD_ROLL] = 15;
+        controlRateConfig->rcExpo[FD_PITCH] = 15;
+        controlRateConfig->rcExpo[FD_YAW]  = 15;
         controlRateConfig->rates[FD_ROLL]  = 85;
         controlRateConfig->rates[FD_PITCH] = 85;
     }
@@ -98,7 +107,11 @@ void targetConfiguration(void)
     *customMotorMixerMutable(3) = (motorMixer_t){ 1.0f,  0.414178f, -1.0f, -1.0f };    // FRONT_L
 
     vcdProfileMutable()->video_system = VIDEO_SYSTEM_NTSC;
+#if defined(BEESTORM)
+    strcpy(pilotConfigMutable()->name, "BeeStorm");
+#else
     strcpy(pilotConfigMutable()->name, "BeeBrain V2");
+#endif
     osdConfigMutable()->cap_alarm  = 250;
     osdConfigMutable()->item_pos[OSD_CRAFT_NAME]        = OSD_POS(9, 11)  | VISIBLE_FLAG;
     osdConfigMutable()->item_pos[OSD_MAIN_BATT_VOLTAGE] = OSD_POS(23, 10) | VISIBLE_FLAG;
@@ -137,6 +150,12 @@ void targetConfiguration(void)
     osdConfigMutable()->item_pos[OSD_NUMERICAL_VARIO]    &= ~VISIBLE_FLAG;
     osdConfigMutable()->item_pos[OSD_ESC_TMP]            &= ~VISIBLE_FLAG;
     osdConfigMutable()->item_pos[OSD_ESC_RPM]            &= ~VISIBLE_FLAG;
+    osdConfigMutable()->item_pos[OSD_G_FORCE]            &= ~VISIBLE_FLAG;
+
+    modeActivationConditionsMutable(0)->modeId           = BOXANGLE;
+    modeActivationConditionsMutable(0)->auxChannelIndex  = AUX2 - NON_AUX_CHANNEL_COUNT;
+    modeActivationConditionsMutable(0)->range.startStep  = CHANNEL_VALUE_TO_STEP(900);
+    modeActivationConditionsMutable(0)->range.endStep    = CHANNEL_VALUE_TO_STEP(2100);
 
 #if defined(BEEBRAIN_V2D)
     // DSM version
@@ -148,7 +167,7 @@ void targetConfiguration(void)
     }
 #else
     // Frsky version
-    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIALRX_UART)].functionMask = FUNCTION_TELEMETRY_FRSKY | FUNCTION_RX_SERIAL;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIALRX_UART)].functionMask = FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_RX_SERIAL;
     rxConfigMutable()->rssi_channel = BBV2_FRSKY_RSSI_CH_IDX;
     rxFailsafeChannelConfig_t *channelFailsafeConfig = rxFailsafeChannelConfigsMutable(BBV2_FRSKY_RSSI_CH_IDX - 1);
     channelFailsafeConfig->mode = RX_FAILSAFE_MODE_SET;

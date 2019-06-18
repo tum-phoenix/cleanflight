@@ -1,18 +1,21 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
@@ -22,8 +25,8 @@
 
 #include "common/axis.h"
 
-#include "config/parameter_group.h"
-#include "config/parameter_group_ids.h"
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
 #include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
@@ -34,6 +37,7 @@
 #include "drivers/compass/compass_ak8963.h"
 #include "drivers/compass/compass_fake.h"
 #include "drivers/compass/compass_hmc5883l.h"
+#include "drivers/compass/compass_qmc5883l.h"
 #include "drivers/io.h"
 #include "drivers/light_led.h"
 
@@ -58,7 +62,7 @@ mag_t mag;                   // mag access functions
 #define COMPASS_INTERRUPT_TAG   IO_TAG_NONE
 #endif
 
-PG_REGISTER_WITH_RESET_FN(compassConfig_t, compassConfig, PG_COMPASS_CONFIG, 0);
+PG_REGISTER_WITH_RESET_FN(compassConfig_t, compassConfig, PG_COMPASS_CONFIG, 1);
 
 void pgResetFn_compassConfig(compassConfig_t *compassConfig)
 {
@@ -83,7 +87,7 @@ void pgResetFn_compassConfig(compassConfig_t *compassConfig)
 #endif
     compassConfig->mag_i2c_device = I2C_DEV_TO_CFG(I2CINVALID);
     compassConfig->mag_i2c_address = 0;
-#elif defined(USE_MAG_HMC5883) || defined(USE_MAG_AK8975) || (defined(USE_MAG_AK8963) && !(defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250)))
+#elif defined(USE_MAG_HMC5883) || defined(USE_MAG_QMC5883) || defined(USE_MAG_AK8975) || (defined(USE_MAG_AK8963) && !(defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250)))
     compassConfig->mag_bustype = BUSTYPE_I2C;
     compassConfig->mag_i2c_device = I2C_DEV_TO_CFG(MAG_I2C_INSTANCE);
     compassConfig->mag_i2c_address = 0;
@@ -106,13 +110,12 @@ void pgResetFn_compassConfig(compassConfig_t *compassConfig)
     compassConfig->interruptTag = COMPASS_INTERRUPT_TAG;
 }
 
-#if defined(MAG)
+#if defined(USE_MAG)
 
 static int16_t magADCRaw[XYZ_AXIS_COUNT];
 static uint8_t magInit = 0;
 
-#if !defined(SITL)
-
+#if !defined(SIMULATOR_BUILD)
 bool compassDetect(magDev_t *dev)
 {
     magSensor_e magHardware = MAG_NONE;
@@ -162,7 +165,7 @@ bool compassDetect(magDev_t *dev)
 
     switch (compassConfig()->mag_hardware) {
     case MAG_DEFAULT:
-        ; // fallthrough
+        FALLTHROUGH;
 
     case MAG_HMC5883:
 #if defined(USE_MAG_HMC5883) || defined(USE_MAG_SPI_HMC5883)
@@ -178,7 +181,23 @@ bool compassDetect(magDev_t *dev)
             break;
         }
 #endif
-        ; // fallthrough
+        FALLTHROUGH;
+
+    case MAG_QMC5883:
+#ifdef USE_MAG_QMC5883
+        if (busdev->bustype == BUSTYPE_I2C) {
+                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+        }
+
+        if (qmc5883lDetect(dev)) {
+#ifdef MAG_QMC5883L_ALIGN
+            dev->magAlign = MAG_QMC5883L_ALIGN;
+#endif
+            magHardware = MAG_QMC5883;
+            break;
+        }
+#endif
+        FALLTHROUGH;
 
     case MAG_AK8975:
 #ifdef USE_MAG_AK8975
@@ -194,7 +213,7 @@ bool compassDetect(magDev_t *dev)
             break;
         }
 #endif
-        ; // fallthrough
+        FALLTHROUGH;
 
     case MAG_AK8963:
 #if defined(USE_MAG_AK8963) || defined(USE_MAG_SPI_AK8963)
@@ -215,7 +234,7 @@ bool compassDetect(magDev_t *dev)
             break;
         }
 #endif
-        ; // fallthrough
+        FALLTHROUGH;
 
     case MAG_NONE:
         magHardware = MAG_NONE;
@@ -237,7 +256,7 @@ bool compassDetect(magDev_t *dev)
 
     return false;
 }
-#endif // !SITL
+#endif // !SIMULATOR_BUILD
 
 bool compassInit(void)
 {
@@ -262,9 +281,14 @@ bool compassInit(void)
     return true;
 }
 
-void compassUpdate(uint32_t currentTime, flightDynamicsTrims_t *magZero)
+bool compassIsHealthy(void)
 {
-    static uint32_t tCal = 0;
+    return (mag.magADC[X] != 0) && (mag.magADC[Y] != 0) && (mag.magADC[Z] != 0);
+}
+
+void compassUpdate(timeUs_t currentTimeUs)
+{
+    static timeUs_t tCal = 0;
     static flightDynamicsTrims_t magZeroTempMin;
     static flightDynamicsTrims_t magZeroTempMax;
 
@@ -274,8 +298,9 @@ void compassUpdate(uint32_t currentTime, flightDynamicsTrims_t *magZero)
     }
     alignSensors(mag.magADC, magDev.magAlign);
 
+    flightDynamicsTrims_t *magZero = &compassConfigMutable()->magZero;
     if (STATE(CALIBRATE_MAG)) {
-        tCal = currentTime;
+        tCal = currentTimeUs;
         for (int axis = 0; axis < 3; axis++) {
             magZero->raw[axis] = 0;
             magZeroTempMin.raw[axis] = mag.magADC[axis];
@@ -291,7 +316,7 @@ void compassUpdate(uint32_t currentTime, flightDynamicsTrims_t *magZero)
     }
 
     if (tCal != 0) {
-        if ((currentTime - tCal) < 30000000) {    // 30s: you have 30s to turn the multi in all directions
+        if ((currentTimeUs - tCal) < 30000000) {    // 30s: you have 30s to turn the multi in all directions
             LED0_TOGGLE;
             for (int axis = 0; axis < 3; axis++) {
                 if (mag.magADC[axis] < magZeroTempMin.raw[axis])
@@ -309,4 +334,4 @@ void compassUpdate(uint32_t currentTime, flightDynamicsTrims_t *magZero)
         }
     }
 }
-#endif
+#endif // USE_MAG

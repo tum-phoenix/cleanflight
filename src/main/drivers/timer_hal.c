@@ -1,18 +1,21 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
@@ -29,6 +32,8 @@
 #include "drivers/nvic.h"
 
 #include "drivers/io.h"
+#include "drivers/dma.h"
+
 #include "rcc.h"
 
 #include "timer.h"
@@ -46,7 +51,6 @@
 
 /// TODO: HAL in a lot af calls lookupTimerIndex is used. Instead of passing the timer instance the index should be passed.
 #define USED_TIMER_COUNT BITCOUNT(USED_TIMERS)
-#define CC_CHANNELS_PER_TIMER 4 // TIM_Channel_1..4
 
 #define TIM_IT_CCx(ch) (TIM_IT_CC1 << ((ch) / 4))
 
@@ -198,9 +202,83 @@ TIM_TypeDef * const usedTimers[USED_TIMER_COUNT] = {
 #undef _DEF
 };
 
+// Map timer index to timer number (Straight copy of usedTimers array)
+const int8_t timerNumbers[USED_TIMER_COUNT] = {
+#define _DEF(i) i
+
+#if USED_TIMERS & TIM_N(1)
+    _DEF(1),
+#endif
+#if USED_TIMERS & TIM_N(2)
+    _DEF(2),
+#endif
+#if USED_TIMERS & TIM_N(3)
+    _DEF(3),
+#endif
+#if USED_TIMERS & TIM_N(4)
+    _DEF(4),
+#endif
+#if USED_TIMERS & TIM_N(5)
+    _DEF(5),
+#endif
+#if USED_TIMERS & TIM_N(6)
+    _DEF(6),
+#endif
+#if USED_TIMERS & TIM_N(7)
+    _DEF(7),
+#endif
+#if USED_TIMERS & TIM_N(8)
+    _DEF(8),
+#endif
+#if USED_TIMERS & TIM_N(9)
+    _DEF(9),
+#endif
+#if USED_TIMERS & TIM_N(10)
+    _DEF(10),
+#endif
+#if USED_TIMERS & TIM_N(11)
+    _DEF(11),
+#endif
+#if USED_TIMERS & TIM_N(12)
+    _DEF(12),
+#endif
+#if USED_TIMERS & TIM_N(13)
+    _DEF(13),
+#endif
+#if USED_TIMERS & TIM_N(14)
+    _DEF(14),
+#endif
+#if USED_TIMERS & TIM_N(15)
+    _DEF(15),
+#endif
+#if USED_TIMERS & TIM_N(16)
+    _DEF(16),
+#endif
+#if USED_TIMERS & TIM_N(17)
+    _DEF(17),
+#endif
+#undef _DEF
+};
+
+int8_t timerGetTIMNumber(const TIM_TypeDef *tim)
+{
+    uint8_t index = lookupTimerIndex(tim);
+
+    if (index < USED_TIMER_COUNT) {
+        return timerNumbers[index];
+    } else {
+        return 0;
+    }
+}
+
 static inline uint8_t lookupChannelIndex(const uint16_t channel)
 {
     return channel >> 2;
+}
+
+uint8_t timerLookupChannelIndex(const uint16_t channel)
+{
+    return lookupChannelIndex(channel);
 }
 
 rccPeriphTag_t timerRCC(TIM_TypeDef *tim)
@@ -795,7 +873,7 @@ void timerInit(void)
     }
 
 #if defined(STM32F3) || defined(STM32F4) || defined(STM32F7)
-    for (int timerIndex = 0; timerIndex < USABLE_TIMER_CHANNEL_COUNT; timerIndex++) {
+    for (unsigned timerIndex = 0; timerIndex < USABLE_TIMER_CHANNEL_COUNT; timerIndex++) {
         const timerHardware_t *timerHardwarePtr = &timerHardware[timerIndex];
         if (timerHardwarePtr->usageFlags == TIM_USE_NONE) {
             continue;
@@ -805,11 +883,17 @@ void timerInit(void)
     }
 #endif
 
+    /* enable the timer peripherals */
+    for (unsigned i = 0; i < USABLE_TIMER_CHANNEL_COUNT; i++) {
+        RCC_ClockCmd(timerRCC(timerHardware[i].tim), ENABLE);
+    }
+
     // initialize timer channel structures
-    for (int i = 0; i < USABLE_TIMER_CHANNEL_COUNT; i++) {
+    for (unsigned i = 0; i < USABLE_TIMER_CHANNEL_COUNT; i++) {
         timerChannelInfo[i].type = TYPE_FREE;
     }
-    for (int i = 0; i < USED_TIMER_COUNT; i++) {
+
+    for (unsigned i = 0; i < USED_TIMER_COUNT; i++) {
         timerInfo[i].priority = ~0;
     }
 }
@@ -864,18 +948,6 @@ void timerForceOverflow(TIM_TypeDef *tim)
     }
 }
 
-const timerHardware_t *timerGetByTag(ioTag_t tag, timerUsageFlag_e flag)
-{
-    for (int i = 0; i < USABLE_TIMER_CHANNEL_COUNT; i++) {
-        if (timerHardware[i].tag == tag) {
-            if (timerHardware[i].usageFlags & flag || flag == 0) {
-                return &timerHardware[i];
-            }
-        }
-    }
-    return NULL;
-}
-
 // DMA_Handle_index
 uint16_t timerDmaIndex(uint8_t channel)
 {
@@ -915,7 +987,7 @@ uint16_t timerGetPrescalerByDesiredMhz(TIM_TypeDef *tim, uint16_t mhz)
 
 uint16_t timerGetPeriodByPrescaler(TIM_TypeDef *tim, uint16_t prescaler, uint32_t hz)
 {
-    return ((uint16_t)((timerClock(tim) / (prescaler + 1)) / hz));
+    return (uint16_t)((timerClock(tim) / (prescaler + 1)) / hz);
 }
 
 uint16_t timerGetPrescalerByDesiredHertz(TIM_TypeDef *tim, uint32_t hz)
@@ -929,9 +1001,6 @@ uint16_t timerGetPrescalerByDesiredHertz(TIM_TypeDef *tim, uint32_t hz)
 
 HAL_StatusTypeDef TIM_DMACmd(TIM_HandleTypeDef *htim, uint32_t Channel, FunctionalState NewState)
 {
-    /* Check the parameters */
-    assert_param(IS_TIM_CCXN_INSTANCE(htim->Instance, Channel));
-
     switch (Channel) {
     case TIM_CHANNEL_1: {
         if (NewState != DISABLE) {
@@ -988,9 +1057,6 @@ HAL_StatusTypeDef TIM_DMACmd(TIM_HandleTypeDef *htim, uint32_t Channel, Function
 
 HAL_StatusTypeDef DMA_SetCurrDataCounter(TIM_HandleTypeDef *htim, uint32_t Channel, uint32_t *pData, uint16_t Length)
 {
-    /* Check the parameters */
-    assert_param(IS_TIM_CCX_INSTANCE(htim->Instance, Channel));
-
     if ((htim->State == HAL_TIM_STATE_BUSY)) {
         return HAL_BUSY;
     } else if ((htim->State == HAL_TIM_STATE_READY)) {
@@ -1055,4 +1121,3 @@ HAL_StatusTypeDef DMA_SetCurrDataCounter(TIM_HandleTypeDef *htim, uint32_t Chann
     /* Return function status */
     return HAL_OK;
 }
-
